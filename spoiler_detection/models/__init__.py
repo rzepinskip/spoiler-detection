@@ -1,0 +1,1 @@
+from spoiler_detection.models.text_classifier import TextClassifier
