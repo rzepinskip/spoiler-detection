@@ -62,6 +62,6 @@ class GoodreadsDatasetReader(DatasetReader):
         sentence_field = TextField(tokenized_sentence, self._token_indexers)
         fields = {"sentence": sentence_field}
         if is_spoiler is not None:
-            fields["label"] = LabelField(is_spoiler, skip_indexing=True)
+            fields["label"] = LabelField("spoiler" if is_spoiler else "nonspoiler")
         return Instance(fields)
 

@@ -23,7 +23,7 @@ class TestSemanticScholarDatasetReader(AllenNlpTestCase):
                 "thriller",
                 ".",
             ],
-            "is_spoiler": 0,
+            "is_spoiler": "nonspoiler",
         }
 
         instance2 = {
@@ -38,7 +38,7 @@ class TestSemanticScholarDatasetReader(AllenNlpTestCase):
                 "regret",
                 ".",
             ],
-            "is_spoiler": 1,
+            "is_spoiler": "spoiler",
         }
 
         assert len(instances) == 156
