@@ -10,14 +10,15 @@ from allennlp.predictors import Predictor
 import spoiler_detection
 
 
-class TestTextClassifierPredictor(TestCase):
+class TestSingleSentencePredictor(TestCase):
     def test_uses_named_inputs(self):
         inputs = {"sentence": "It can be a spoiler."}
 
         archive = load_archive("tests/fixtures/single_sentence_classifier.tar.gz")
         predictor = Predictor.from_archive(archive, "single_sentence_predictor")
 
-        result = predictor.predict_json(inputs)
+        instance = predictor._json_to_instance(inputs)
+        result = predictor.predict_instance(instance)
 
         label = result.get("label")
         assert label in {"nonspoiler", "spoiler"}
