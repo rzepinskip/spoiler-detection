@@ -5,8 +5,8 @@ from allennlp.data import Instance
 from allennlp.predictors.predictor import Predictor
 
 
-@Predictor.register("text-classifier")
-class TextClassifierPredictor(Predictor):
+@Predictor.register("single_sentence_predictor")
+class SingleSentencePredictor(Predictor):
     def predict_json(self, inputs: JsonDict) -> JsonDict:
         instance = self._json_to_instance(inputs)
         output_dict = self.predict_instance(instance)

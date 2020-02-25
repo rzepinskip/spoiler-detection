@@ -14,8 +14,8 @@ from allennlp.nn import util
 from allennlp.training.metrics import CategoricalAccuracy
 
 
-@Model.register("text_classifier")
-class TextClassifier(Model):
+@Model.register("single_sentence_classifier")
+class SingleSentenceClassifier(Model):
     def __init__(
         self,
         vocab: Vocabulary,
@@ -25,7 +25,7 @@ class TextClassifier(Model):
         initializer: InitializerApplicator = InitializerApplicator(),
         regularizer: Optional[RegularizerApplicator] = None,
     ) -> None:
-        super(TextClassifier, self).__init__(vocab, regularizer)
+        super(SingleSentenceClassifier, self).__init__(vocab, regularizer)
 
         self.text_field_embedder = text_field_embedder
         self.num_classes = self.vocab.get_vocab_size("labels")

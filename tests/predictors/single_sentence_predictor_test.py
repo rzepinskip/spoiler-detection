@@ -14,8 +14,8 @@ class TestTextClassifierPredictor(TestCase):
     def test_uses_named_inputs(self):
         inputs = {"sentence": "It can be a spoiler."}
 
-        archive = load_archive("tests/fixtures/text_classifier_model.tar.gz")
-        predictor = Predictor.from_archive(archive, "text-classifier")
+        archive = load_archive("tests/fixtures/single_sentence_classifier.tar.gz")
+        predictor = Predictor.from_archive(archive, "single_sentence_predictor")
 
         result = predictor.predict_json(inputs)
 

@@ -3,11 +3,12 @@ from allennlp.common.testing import ModelTestCase
 import spoiler_detection
 
 
-class TextClassifierTest(ModelTestCase):
+class SingleSentenceClassifierTest(ModelTestCase):
     def setUp(self):
-        super(TextClassifierTest, self).setUp()
+        super(SingleSentenceClassifierTest, self).setUp()
         self.set_up_model(
-            "tests/fixtures/text_classifier.json", "tests/fixtures/goodreads.jsonl",
+            "tests/fixtures/single_sentence_classifier.json",
+            "tests/fixtures/goodreads.jsonl",
         )
 
     def test_model_can_train_save_and_load(self):

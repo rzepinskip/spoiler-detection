@@ -2,13 +2,13 @@
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.common.util import ensure_list
 
-from spoiler_detection.dataset_readers import GoodreadsDatasetReader
+from spoiler_detection.dataset_readers import GoodreadsSingleSentenceDatasetReader
 
 
-class TestSemanticScholarDatasetReader(AllenNlpTestCase):
+class TestGoodreadsSingleSentenceDatasetReader(AllenNlpTestCase):
     def test_read_from_file(self):
 
-        reader = GoodreadsDatasetReader()
+        reader = GoodreadsSingleSentenceDatasetReader()
         instances = ensure_list(reader.read("tests/fixtures/goodreads.jsonl"))
 
         instance1 = {
@@ -23,7 +23,7 @@ class TestSemanticScholarDatasetReader(AllenNlpTestCase):
                 "thriller",
                 ".",
             ],
-            "is_spoiler": "nonspoiler",
+            "label": "nonspoiler",
         }
 
         instance2 = {
@@ -38,14 +38,14 @@ class TestSemanticScholarDatasetReader(AllenNlpTestCase):
                 "regret",
                 ".",
             ],
-            "is_spoiler": "spoiler",
+            "label": "spoiler",
         }
 
         assert len(instances) == 156
         fields = instances[23].fields
         assert [t.text for t in fields["sentence"].tokens] == instance1["sentence"]
-        assert fields["label"].label == instance1["is_spoiler"]
+        assert fields["label"].label == instance1["label"]
         fields = instances[35].fields
         assert [t.text for t in fields["sentence"].tokens] == instance2["sentence"]
-        assert fields["label"].label == instance2["is_spoiler"]
+        assert fields["label"].label == instance2["label"]
 

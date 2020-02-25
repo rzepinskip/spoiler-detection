@@ -1,1 +1,1 @@
-from spoiler_detection.models.text_classifier import TextClassifier
+from spoiler_detection.models.single_sentence_classifier import SingleSentenceClassifier
