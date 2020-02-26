@@ -6,6 +6,7 @@
   "validation_data_path": "tests/fixtures/goodreads.jsonl",
   "model": {
     "type": "single_sentence_classifier",
+    "class_weights": [0.05, 0.95],
     "text_field_embedder": {
       "token_embedders": {
         "tokens": {
@@ -26,16 +27,12 @@
       "hidden_dims": [1, 2],
       "activations": ["sigmoid", "linear"],
       "dropout": [0.2, 0.0]
-    },
-    "class_weights": [0.05, 0.95]
+    }
   },
   "iterator": {
-    "type": "bucket",
-    "sorting_keys": [["sentence", "num_tokens"]],
-    "padding_noise": 0.0,
+    "type": "basic",
     "batch_size": 64
   },
-
   "trainer": {
     "num_epochs": 1,
     "cuda_device": -1,
