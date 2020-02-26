@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional
 
-import numpy
+import numpy as np
 from overrides import overrides
 import torch
 import torch.nn.functional as F
@@ -32,17 +32,6 @@ class SingleSentenceClassifier(Model):
         self.num_classes = self.vocab.get_vocab_size("labels")
         self.sentence_encoder = sentence_encoder
         self.classifier_feedforward = classifier_feedforward
-
-        if text_field_embedder.get_output_dim() != sentence_encoder.get_input_dim():
-            raise ConfigurationError(
-                "The output dimension of the text_field_embedder must match the "
-                "input dimension of the sentence_encoder. Found {} and {}, "
-                "respectively.".format(
-                    text_field_embedder.get_output_dim(),
-                    sentence_encoder.get_input_dim(),
-                )
-            )
-
         self.metrics = {
             "accuracy": CategoricalAccuracy(),
             "accuracy3": CategoricalAccuracy(top_k=3),
@@ -59,36 +48,30 @@ class SingleSentenceClassifier(Model):
 
     @overrides
     def forward(
-        self,  # type: ignore
-        sentence: Dict[str, torch.LongTensor],
-        label: torch.LongTensor = None,
+        self, sentence: Dict[str, torch.LongTensor], label: torch.LongTensor = None
     ) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
-        embedded_title = self.text_field_embedder(sentence)
-        title_mask = util.get_text_field_mask(sentence)
-        encoded_title = self.sentence_encoder(embedded_title, title_mask)
+        embedded_sentence = self.text_field_embedder(sentence)
+        sentence_mask = util.get_text_field_mask(sentence)
+        encoded_sentence = self.sentence_encoder(embedded_sentence, sentence_mask)
 
-        logits = self.classifier_feedforward(encoded_title)
+        logits = self.classifier_feedforward(encoded_sentence)
+
         output_dict = {"logits": logits}
         if label is not None:
-            loss = self.loss(logits, label)
+            loss = self.loss(logits, label.squeeze(-1))
             for metric in self.metrics.values():
-                metric(logits, label)
+                metric(logits, label.squeeze(-1))
             output_dict["loss"] = loss
 
         return output_dict
 
     @overrides
     def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """
-        Does a simple argmax over the class probabilities, converts indices to string labels, and
-        adds a ``"label"`` key to the dictionary with the result.
-        """
-        class_probabilities = F.softmax(output_dict["logits"], dim=-1)
+        class_probabilities = F.softmax(output_dict["logits"])
         output_dict["class_probabilities"] = class_probabilities
 
         predictions = class_probabilities.cpu().data.numpy()
-        argmax_indices = numpy.argmax(predictions, axis=-1)
+        argmax_indices = np.argmax(predictions, axis=-1)
         labels = [
             self.vocab.get_token_from_index(x, namespace="labels")
             for x in argmax_indices
@@ -102,3 +85,4 @@ class SingleSentenceClassifier(Model):
             metric_name: metric.get_metric(reset)
             for metric_name, metric in self.metrics.items()
         }
+
