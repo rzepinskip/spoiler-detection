@@ -22,5 +22,6 @@ allennlp train tests/fixtures/multiple_sentences_classifier.json \
 ```
 allennlp train experiments/lstm_sentence_encoder_with_glove.json \
     -s tmp \
-    --include-package spoiler_detection
+    --include-package spoiler_detection \
+    --file-friendly-logging
 ```
