@@ -1,15 +1,13 @@
 {
   "dataset_reader": {
-    "type": "goodreads_single_sentence",
-    "lazy": true
+    "type": "goodreads_single_sentence"
   },
-  "train_data_path": "https://goodreads-spoilers.s3.eu-central-1.amazonaws.com/goodreads-train.json",
-  "validation_data_path": "https://goodreads-spoilers.s3.eu-central-1.amazonaws.com/goodreads-val.json",
-  "test_data_path": "https://goodreads-spoilers.s3.eu-central-1.amazonaws.com/goodreads-test.json",
+  "train_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json",
+  "validation_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json",
+  "test_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json",
   "evaluate_on_test": true,
   "model": {
     "type": "single_sentence_classifier",
-    "class_weights": [0.05, 0.95],
     "text_field_embedder": {
       "tokens": {
         "type": "embedding",
