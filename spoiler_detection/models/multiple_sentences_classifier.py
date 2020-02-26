@@ -33,6 +33,7 @@ class MultipleSentencesClassifier(Model):
         initializer: InitializerApplicator = InitializerApplicator(),
         dropout: Optional[float] = None,
         regularizer: Optional[RegularizerApplicator] = None,
+        class_weights: List[float] = None,
     ) -> None:
         super(MultipleSentencesClassifier, self).__init__(vocab, regularizer)
 
@@ -47,7 +48,14 @@ class MultipleSentencesClassifier(Model):
             "accuracy": CategoricalAccuracy(),
             "accuracy3": CategoricalAccuracy(top_k=3),
         }
-        self.loss = torch.nn.CrossEntropyLoss()
+
+        if class_weights is not None:
+            self.loss = torch.nn.CrossEntropyLoss(
+                weight=torch.FloatTensor(class_weights)
+            )
+        else:
+            self.loss = torch.nn.CrossEntropyLoss()
+
         self.label_projection_layer = TimeDistributed(
             Linear(self.sentence_encoder.get_output_dim(), self.num_classes)
         )

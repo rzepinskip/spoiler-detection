@@ -21,7 +21,8 @@
       "hidden_size": 100,
       "num_layers": 1,
       "dropout": 0.2
-    }
+    },
+    "class_weights": [0.05, 0.95]
   },
   "iterator": {
     "type": "basic",

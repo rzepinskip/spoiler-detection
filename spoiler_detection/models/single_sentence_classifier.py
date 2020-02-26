@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import List, Dict, Optional
 
 import numpy
 from overrides import overrides
@@ -24,6 +24,7 @@ class SingleSentenceClassifier(Model):
         classifier_feedforward: FeedForward,
         initializer: InitializerApplicator = InitializerApplicator(),
         regularizer: Optional[RegularizerApplicator] = None,
+        class_weights: List[float] = None,
     ) -> None:
         super(SingleSentenceClassifier, self).__init__(vocab, regularizer)
 
@@ -46,7 +47,13 @@ class SingleSentenceClassifier(Model):
             "accuracy": CategoricalAccuracy(),
             "accuracy3": CategoricalAccuracy(top_k=3),
         }
-        self.loss = torch.nn.CrossEntropyLoss()
+
+        if class_weights is not None:
+            self.loss = torch.nn.CrossEntropyLoss(
+                weight=torch.FloatTensor(class_weights)
+            )
+        else:
+            self.loss = torch.nn.CrossEntropyLoss()
 
         initializer(self)
 
