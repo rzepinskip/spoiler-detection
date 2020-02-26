@@ -68,7 +68,6 @@ overrides==2.8.0
 packaging==20.1
 parsimonious==0.8.0
 pathspec==0.7.0
-pkg-resources==0.0.0
 plac==0.9.6
 pluggy==0.13.1
 preshed==2.0.1
