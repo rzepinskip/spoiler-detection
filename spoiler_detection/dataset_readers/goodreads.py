@@ -17,20 +17,23 @@ from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
+from spoiler_detection.dataset_readers.readers import (
+    SingleSentenceDatasetReader,
+    MultipleSentencesDatasetReader,
+)
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 @DatasetReader.register("goodreads_single_sentence")
-class GoodreadsSingleSentenceDatasetReader(DatasetReader):
+class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
     def __init__(
         self,
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
     ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = tokenizer or WordTokenizer()
-        self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        super().__init__(lazy, tokenizer, token_indexers)
 
     @overrides
     def _read(self, file_path):
@@ -43,27 +46,16 @@ class GoodreadsSingleSentenceDatasetReader(DatasetReader):
                         sentence, "spoiler" if is_spoiler else "nonspoiler"
                     )
 
-    @overrides
-    def text_to_instance(self, sentence: str, label: str = None) -> Instance:
-        fields: Dict[str, Field] = {}
-        tokenized_sentence = self._tokenizer.tokenize(sentence)
-        fields["sentence"] = TextField(tokenized_sentence, self._token_indexers)
-        if label is not None:
-            fields["label"] = LabelField(label)
-        return Instance(fields)
-
 
 @DatasetReader.register("goodreads_multiple_sentences")
-class GoodreadsMultipleSentencesDatasetReader(DatasetReader):
+class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
     def __init__(
         self,
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
     ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = tokenizer or WordTokenizer()
-        self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        super().__init__(lazy, tokenizer, token_indexers)
 
     @overrides
     def _read(self, file_path):
@@ -77,18 +69,3 @@ class GoodreadsMultipleSentencesDatasetReader(DatasetReader):
                     labels.append("spoiler" if is_spoiler else "nonspoiler")
 
                 yield self.text_to_instance(sentences, labels)
-
-    @overrides
-    def text_to_instance(
-        self, sentences: List[str], labels: List[str] = None
-    ) -> Instance:
-        fields: Dict[str, Field] = {}
-        tokenized_sentences = [self._tokenizer.tokenize(sent) for sent in sentences]
-        sentence_sequence = ListField(
-            [TextField(tk, self._token_indexers) for tk in tokenized_sentences]
-        )
-        fields["sentences"] = sentence_sequence
-
-        if labels is not None:
-            fields["labels"] = SequenceLabelField(labels, sentence_sequence)
-        return Instance(fields)

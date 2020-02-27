@@ -17,20 +17,23 @@ from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Tokenizer, WordTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
+from spoiler_detection.dataset_readers.readers import (
+    SingleSentenceDatasetReader,
+    MultipleSentencesDatasetReader,
+)
+
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-@DatasetReader.register("tvtropes_movie")
-class TvTropesMovieDatasetReader(DatasetReader):
+@DatasetReader.register("tvtropes_movie_single_sentence")
+class TvTropesMovieSingleSentenceDatasetReader(SingleSentenceDatasetReader):
     def __init__(
         self,
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
     ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = tokenizer or WordTokenizer()
-        self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
+        super().__init__(lazy, tokenizer, token_indexers)
 
     @overrides
     def _read(self, file_path):
@@ -43,12 +46,24 @@ class TvTropesMovieDatasetReader(DatasetReader):
                     sentence, "spoiler" if spoiler == "True" else "nonspoiler"
                 )
 
-    @overrides
-    def text_to_instance(self, sentence: str, label: str = None) -> Instance:
-        fields: Dict[str, Field] = {}
-        tokenized_sentence = self._tokenizer.tokenize(sentence)
-        fields["sentence"] = TextField(tokenized_sentence, self._token_indexers)
-        if label is not None:
-            fields["label"] = LabelField(label)
-        return Instance(fields)
 
+@DatasetReader.register("tvtropes_movie_multiple_sentences")
+class TvTropesMovieMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
+    def __init__(
+        self,
+        lazy: bool = False,
+        tokenizer: Tokenizer = None,
+        token_indexers: Dict[str, TokenIndexer] = None,
+    ) -> None:
+        super().__init__(lazy, tokenizer, token_indexers)
+
+    @overrides
+    def _read(self, file_path):
+        with open(cached_path(file_path), "r") as data_file:
+            logger.info("Reading instances from lines in file at: %s", file_path)
+            reader = csv.reader(data_file)
+            next(reader)  # skip header
+            for sentence, spoiler, verb, page, trope in reader:
+                yield self.text_to_instance(
+                    [sentence], ["spoiler" if spoiler == "True" else "nonspoiler"]
+                )
