@@ -6,7 +6,6 @@
   "train_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json",
   "validation_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json",
   "test_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json",
-  "evaluate_on_test": true,
   "model": {
     "type": "single_sentence_classifier",
     "text_field_embedder": {
@@ -40,6 +39,7 @@
   },
   "trainer": {
     "num_epochs": 40,
+    "patience": 5,
     "cuda_device": 0,
     "grad_clipping": 5.0,
     "validation_metric": "+accuracy",

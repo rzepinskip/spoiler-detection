@@ -5,7 +5,6 @@
   "train_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv",
   "validation_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv",
   "test_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-test.balanced.csv",
-  "evaluate_on_test": true,
   "model": {
     "type": "single_sentence_classifier",
     "text_field_embedder": {
@@ -38,6 +37,7 @@
   },
   "trainer": {
     "num_epochs": 40,
+    "patience": 5,
     "cuda_device": 0,
     "grad_clipping": 5.0,
     "validation_metric": "+accuracy",

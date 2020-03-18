@@ -20,7 +20,7 @@ from allennlp.modules.conditional_random_field import allowed_transitions
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
-from allennlp.training.metrics import SpanBasedF1Measure, CategoricalAccuracy
+from allennlp.training.metrics import F1Measure, CategoricalAccuracy
 
 
 @Model.register("multiple_sentences_classifier")
@@ -46,7 +46,7 @@ class MultipleSentencesClassifier(Model):
             self.dropout = None
         self.metrics = {
             "accuracy": CategoricalAccuracy(),
-            "accuracy3": CategoricalAccuracy(top_k=3),
+            "f1": F1Measure(positive_label=1),
         }
 
         if class_weights is not None:
@@ -142,7 +142,7 @@ class MultipleSentencesClassifier(Model):
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {
-            metric_name: metric.get_metric(reset)
-            for metric_name, metric in self.metrics.items()
+            "f1": self.metrics["f1"].get_metric(reset=reset)[2],
+            "accuracy": self.metrics["accuracy"].get_metric(reset=reset),
         }
 
