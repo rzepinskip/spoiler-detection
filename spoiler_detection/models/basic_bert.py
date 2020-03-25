@@ -67,8 +67,8 @@ class BertFinetuner(pl.LightningModule):
         )
 
     def prepare_data(self):
-        self.train_dl = get_goodreads_dataset(self.tokenizer, "dev")
-        self.val_dl = get_goodreads_dataset(self.tokenizer, "dev")
+        self.train_dl = get_goodreads_dataset(self.tokenizer, "train")
+        self.val_dl = get_goodreads_dataset(self.tokenizer, "val")
 
     def train_dataloader(self):
         return self.train_dl
