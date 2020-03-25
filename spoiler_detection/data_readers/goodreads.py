@@ -1,4 +1,4 @@
-from spoiler_detection.file_utils import cached_path
+from transformers import cached_path
 from torch import tensor
 from torch.utils.data import DataLoader, Dataset
 from functools import partial
