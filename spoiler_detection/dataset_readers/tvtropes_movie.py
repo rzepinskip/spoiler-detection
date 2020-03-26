@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 import csv
 
@@ -14,7 +14,7 @@ from allennlp.data.fields import (
     SequenceLabelField,
 )
 from allennlp.data.instance import Instance
-from allennlp.data.tokenizers import Tokenizer, WordTokenizer
+from allennlp.data.tokenizers import Tokenizer, SpacyTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
 from spoiler_detection.dataset_readers.readers import (
@@ -32,8 +32,9 @@ class TvTropesMovieSingleSentenceDatasetReader(SingleSentenceDatasetReader):
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy, tokenizer, token_indexers)
+        super().__init__(lazy, tokenizer, token_indexers, cache_directory)
 
     @overrides
     def _read(self, file_path):
@@ -42,9 +43,7 @@ class TvTropesMovieSingleSentenceDatasetReader(SingleSentenceDatasetReader):
             reader = csv.reader(data_file)
             next(reader)  # skip header
             for sentence, spoiler, verb, page, trope in reader:
-                yield self.text_to_instance(
-                    sentence, "spoiler" if spoiler == "True" else "nonspoiler"
-                )
+                yield self.text_to_instance(sentence, 1 if spoiler == "True" else 0)
 
 
 @DatasetReader.register("tvtropes_movie_multiple_sentences")
@@ -54,8 +53,9 @@ class TvTropesMovieMultipleSentencesDatasetReader(MultipleSentencesDatasetReader
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy, tokenizer, token_indexers)
+        super().__init__(lazy, tokenizer, token_indexers, cache_directory)
 
     @overrides
     def _read(self, file_path):
@@ -64,6 +64,4 @@ class TvTropesMovieMultipleSentencesDatasetReader(MultipleSentencesDatasetReader
             reader = csv.reader(data_file)
             next(reader)  # skip header
             for sentence, spoiler, verb, page, trope in reader:
-                yield self.text_to_instance(
-                    [sentence], ["spoiler" if spoiler == "True" else "nonspoiler"]
-                )
+                yield self.text_to_instance([sentence], [1 if spoiler == "True" else 0])

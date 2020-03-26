@@ -12,9 +12,8 @@
     "text_field_embedder": {
       "token_embedders": {
         "tokens": {
-          "type": "embedding",
-          "embedding_dim": 2,
-          "trainable": false
+          "type": "pretrained_transformer",
+          "model_name": transformer_model,
         }
       }
     },
@@ -26,7 +25,10 @@
   },
   "data_loader": {
     "num_workers": 0,
-    "batch_size": 3
+    "batch_sampler": {
+      "type": "bucket",
+      "batch_size": 32
+    }
   },
   "trainer": {
     "num_epochs": 1,

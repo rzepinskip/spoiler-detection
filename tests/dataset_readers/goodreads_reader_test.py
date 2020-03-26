@@ -26,7 +26,7 @@ class TestGoodreadsSingleSentenceDatasetReader(AllenNlpTestCase):
                 "thriller",
                 ".",
             ],
-            "label": "nonspoiler",
+            "label": 0,
         }
 
         instance2 = {
@@ -41,7 +41,7 @@ class TestGoodreadsSingleSentenceDatasetReader(AllenNlpTestCase):
                 "regret",
                 ".",
             ],
-            "label": "spoiler",
+            "label": 1,
         }
 
         assert len(instances) == 156
@@ -71,7 +71,7 @@ class TestGoodreadsMultipleSentencesDatasetReader(AllenNlpTestCase):
                 "thriller",
                 ".",
             ],
-            "label": "nonspoiler",
+            "label": 0,
         }
 
         instance1_sentence2 = {
@@ -86,7 +86,7 @@ class TestGoodreadsMultipleSentencesDatasetReader(AllenNlpTestCase):
                 "regret",
                 ".",
             ],
-            "label": "spoiler",
+            "label": 1,
         }
 
         assert len(instances) == 10
@@ -99,4 +99,3 @@ class TestGoodreadsMultipleSentencesDatasetReader(AllenNlpTestCase):
             "sentence"
         ]
         assert fields["labels"][12] == instance1_sentence2["label"]
-

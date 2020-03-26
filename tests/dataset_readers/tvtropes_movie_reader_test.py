@@ -33,7 +33,7 @@ class TestTvTropesMovieSingleSentenceDatasetReader(AllenNlpTestCase):
                 "WORSE",
                 ".",
             ],
-            "label": "spoiler",
+            "label": 1,
         }
 
         instance2 = {
@@ -60,7 +60,7 @@ class TestTvTropesMovieSingleSentenceDatasetReader(AllenNlpTestCase):
                 "team",
                 ".",
             ],
-            "label": "nonspoiler",
+            "label": 0,
         }
 
         assert len(instances) == 10
@@ -97,7 +97,7 @@ class TestTvTropesMovieMultipleSentencesDatasetReader(AllenNlpTestCase):
                 "WORSE",
                 ".",
             ],
-            "label": "spoiler",
+            "label": 1,
         }
 
         instance2 = {
@@ -124,7 +124,7 @@ class TestTvTropesMovieMultipleSentencesDatasetReader(AllenNlpTestCase):
                 "team",
                 ".",
             ],
-            "label": "nonspoiler",
+            "label": 0,
         }
 
         assert len(instances) == 10

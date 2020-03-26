@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import json
 import logging
 
@@ -14,7 +14,7 @@ from allennlp.data.fields import (
     SequenceLabelField,
 )
 from allennlp.data.instance import Instance
-from allennlp.data.tokenizers import Tokenizer, WordTokenizer
+from allennlp.data.tokenizers import Tokenizer, SpacyTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
 from spoiler_detection.dataset_readers.readers import (
@@ -32,8 +32,9 @@ class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy, tokenizer, token_indexers)
+        super().__init__(lazy, tokenizer, token_indexers, cache_directory)
 
     @overrides
     def _read(self, file_path):
@@ -42,9 +43,7 @@ class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
             for line in data_file:
                 review_json = json.loads(line)
                 for is_spoiler, sentence in review_json["review_sentences"]:
-                    yield self.text_to_instance(
-                        sentence, "spoiler" if is_spoiler else "nonspoiler"
-                    )
+                    yield self.text_to_instance(sentence, is_spoiler)
 
 
 @DatasetReader.register("goodreads_multiple_sentences")
@@ -54,8 +53,9 @@ class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy, tokenizer, token_indexers)
+        super().__init__(lazy, tokenizer, token_indexers, cache_directory)
 
     @overrides
     def _read(self, file_path):
@@ -66,6 +66,6 @@ class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
                 sentences, labels = list(), list()
                 for is_spoiler, sentence in review_json["review_sentences"]:
                     sentences.append(sentence)
-                    labels.append("spoiler" if is_spoiler else "nonspoiler")
+                    labels.append(int(is_spoiler))
 
                 yield self.text_to_instance(sentences, labels)

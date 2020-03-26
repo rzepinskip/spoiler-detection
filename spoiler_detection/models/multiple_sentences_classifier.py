@@ -1,82 +1,141 @@
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List
 
-import numpy as np
 from overrides import overrides
 import torch
-from torch.nn.modules.linear import Linear
-import torch.nn.functional as F
 
-from allennlp.common import Params
-from allennlp.common.checks import check_dimensions_match
-from allennlp.data import Vocabulary
-from allennlp.modules import (
-    Seq2VecEncoder,
-    TimeDistributed,
-    TextFieldEmbedder,
-    ConditionalRandomField,
-    FeedForward,
-)
-from allennlp.modules.conditional_random_field import allowed_transitions
+from allennlp.data import TextFieldTensors, Vocabulary
 from allennlp.models.model import Model
-from allennlp.nn import InitializerApplicator, RegularizerApplicator
-from allennlp.nn import util
-from allennlp.training.metrics import F1Measure, CategoricalAccuracy
+from allennlp.modules import (
+    FeedForward,
+    Seq2VecEncoder,
+    TextFieldEmbedder,
+    TimeDistributed,
+    ConditionalRandomField,
+)
+from allennlp.nn import InitializerApplicator
+
+from allennlp.training.metrics import CategoricalAccuracy, F1Measure
 
 
 @Model.register("multiple_sentences_classifier")
 class MultipleSentencesClassifier(Model):
+    """
+    This `Model` implements a basic text classifier. After embedding the text into
+    a text field the resulting sequence is pooled using a `Seq2VecEncoder` and then
+    passed to a linear classification layer, which projects into the label space.e
+    `Seq2VecEncoder`.
+
+    # Parameters
+
+    vocab : `Vocabulary`
+    text_field_embedder : `TextFieldEmbedder`
+        Used to embed the input text into a `TextField`
+    seq2vec_encoder : `Seq2VecEncoder`
+        Required Seq2Vec encoder layer. Operate directly on the output
+        of the `text_field_embedder`.
+    feedforward : `FeedForward`, optional, (default = None).
+        An optional feedforward layer to apply after the seq2vec_encoder.
+    dropout : `float`, optional (default = `None`)
+        Dropout percentage to use.
+    initializer : `InitializerApplicator`, optional (default=`InitializerApplicator()`)
+        If provided, will be used to initialize the model parameters.
+    """
+
     def __init__(
         self,
         vocab: Vocabulary,
         text_field_embedder: TextFieldEmbedder,
-        sentence_encoder: Seq2VecEncoder,
-        initializer: InitializerApplicator = InitializerApplicator(),
-        dropout: Optional[float] = None,
-        regularizer: Optional[RegularizerApplicator] = None,
+        seq2vec_encoder: Seq2VecEncoder,
+        feedforward: Optional[FeedForward] = None,
+        dropout: float = None,
         class_weights: List[float] = None,
+        initializer: InitializerApplicator = InitializerApplicator(),
+        **kwargs,
     ) -> None:
-        super(MultipleSentencesClassifier, self).__init__(vocab, regularizer)
 
-        self.text_field_embedder = text_field_embedder
-        self.num_classes = self.vocab.get_vocab_size("labels")
-        self.sentence_encoder = sentence_encoder
-        if dropout:
-            self.dropout = torch.nn.Dropout(dropout)
+        super().__init__(vocab, **kwargs)
+        self._text_field_embedder = text_field_embedder
+
+        self._seq2vec_encoder = seq2vec_encoder
+        self._feedforward = feedforward
+        if feedforward is not None:
+            self._classifier_input_dim = self._feedforward.get_output_dim()
         else:
-            self.dropout = None
-        self.metrics = {
+            self._classifier_input_dim = self._seq2vec_encoder.get_output_dim()
+
+        if dropout:
+            self._dropout = torch.nn.Dropout(dropout)
+        else:
+            self._dropout = None
+
+        self._metrics = {
             "accuracy": CategoricalAccuracy(),
             "f1": F1Measure(positive_label=1),
         }
-
         if class_weights is not None:
-            self.loss = torch.nn.CrossEntropyLoss(
+            self._loss = torch.nn.CrossEntropyLoss(
                 weight=torch.FloatTensor(class_weights)
             )
         else:
-            self.loss = torch.nn.CrossEntropyLoss()
+            self._loss = torch.nn.CrossEntropyLoss()
 
-        self.label_projection_layer = TimeDistributed(
-            Linear(self.sentence_encoder.get_output_dim(), self.num_classes)
+        self._num_classes = 2
+        self._classification_layer = TimeDistributed(
+            torch.nn.Linear(self._classifier_input_dim, self._num_classes)
         )
 
         constraints = None  # allowed_transitions(label_encoding, labels)
-        self.crf = ConditionalRandomField(
-            self.num_classes, constraints, include_start_end_transitions=False
+        self._crf = ConditionalRandomField(
+            self._num_classes, constraints, include_start_end_transitions=False
         )
+
         initializer(self)
 
-    @overrides
-    def forward(
-        self, sentences: Dict[str, torch.LongTensor], labels: torch.LongTensor = None
+    def forward(  # type: ignore
+        self, sentences, labels
     ) -> Dict[str, torch.Tensor]:
+        def get_text_field_mask(
+            text_field_tensors: Dict[str, Dict[str, torch.Tensor]],
+            num_wrapping_dims: int = 0,
+        ) -> torch.BoolTensor:
+            tensor_dims = [
+                (tensor.dim(), tensor)
+                for indexer_output in text_field_tensors.values()
+                for tensor in indexer_output.values()
+            ]
+            tensor_dims.sort(key=lambda x: x[0])
 
-        # print(sentences['tokens'].size())
-        # print(labels.size())
+            smallest_dim = tensor_dims[0][0] - num_wrapping_dims
+            if smallest_dim == 2:
+                token_tensor = tensor_dims[0][1]
+                return token_tensor != 0
+            elif smallest_dim == 3:
+                character_tensor = tensor_dims[0][1]
+                return (character_tensor > 0).any(dim=-1)
+            else:
+                raise ValueError(
+                    "Expected a tensor with dimension 2 or 3, found {}".format(
+                        smallest_dim
+                    )
+                )
 
-        embedded_sentences = self.text_field_embedder(sentences)
-        token_masks = util.get_text_field_mask(sentences, 1)
-        sentence_masks = util.get_text_field_mask(sentences)
+        embeddings = []
+        for batch_idx in range(sentences["tokens"]["token_ids"].size()[0]):
+            embeddings.append(
+                self._text_field_embedder(
+                    {
+                        "tokens": {
+                            "token_ids": sentences["tokens"]["token_ids"][batch_idx],
+                            "mask": sentences["tokens"]["mask"][batch_idx],
+                            "type_ids": sentences["tokens"]["type_ids"][batch_idx],
+                        }
+                    }
+                )
+            )
+
+        embedded_sentences = torch.stack(embeddings)
+        token_masks = get_text_field_mask(sentences, 1)
+        sentence_masks = get_text_field_mask(sentences)
 
         # get sentence embedding
         encoded_sentences = []
@@ -84,24 +143,28 @@ class MultipleSentencesClassifier(Model):
             1
         ]  # size: (n_batch, n_sents, n_tokens, n_embedding)
         for i in range(n_sents):
-            encoded_sentences.append(
-                self.sentence_encoder(
-                    embedded_sentences[:, i, :, :], token_masks[:, i, :]
-                )
+            embedded_text = self._seq2vec_encoder(
+                embedded_sentences[:, i, :, :], mask=token_masks[:, i, :]
             )
-        encoded_sentences = torch.stack(encoded_sentences, 1)
 
-        # dropout layer
-        if self.dropout:
-            encoded_sentences = self.dropout(encoded_sentences)
+            # TODO apply this layers on stacked sentences output somehow
+            # if self._dropout:
+            #     embedded_text = self._dropout(embedded_text)
 
-        # print(encoded_sentences.size()) # size: (n_batch, n_sents, n_embedding)
+            # if self._feedforward is not None:
+            #     embedded_text = self._feedforward(embedded_text)
+
+            encoded_sentences.append(embedded_text)
+
+        encoded_sentences = torch.stack(
+            encoded_sentences, 1
+        )  # size: (n_batch, n_sents, n_embedding)
 
         # CRF prediction
-        logits = self.label_projection_layer(
+        logits = self._classification_layer(
             encoded_sentences
         )  # size: (n_batch, n_sents, n_classes)
-        best_paths = self.crf.viterbi_tags(logits, sentence_masks)
+        best_paths = self._crf.viterbi_tags(logits, sentence_masks)
         predicted_labels = [x for x, y in best_paths]
 
         output_dict = {
@@ -112,7 +175,7 @@ class MultipleSentencesClassifier(Model):
 
         # referring to https://github.com/allenai/allennlp/blob/master/allennlp/models/crf_tagger.py#L229-L239
         if labels is not None:
-            log_likelihood = self.crf(logits, labels, sentence_masks)
+            log_likelihood = self._crf(logits, labels, sentence_masks)
             output_dict["loss"] = -log_likelihood
 
             class_probabilities = logits * 0.0
@@ -120,15 +183,18 @@ class MultipleSentencesClassifier(Model):
                 for j, label_id in enumerate(instance_labels):
                     class_probabilities[i, j, label_id] = 1
 
-            for metric in self.metrics.values():
-                metric(class_probabilities, labels, sentence_masks.float())
+            for metric in self._metrics.values():
+                metric(class_probabilities, labels, sentence_masks)
 
         return output_dict
 
     @overrides
-    def decode(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def make_output_human_readable(
+        self, output_dict: Dict[str, torch.Tensor]
+    ) -> Dict[str, torch.Tensor]:
         """
-        Coverts tag ids to actual tags.
+        Does a simple argmax over the probabilities, converts index to string label, and
+        add `"label"` key to the dictionary with the result.
         """
         output_dict["labels"] = [
             [
@@ -139,10 +205,8 @@ class MultipleSentencesClassifier(Model):
         ]
         return output_dict
 
-    @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {
-            "f1": self.metrics["f1"].get_metric(reset=reset)[2],
-            "accuracy": self.metrics["accuracy"].get_metric(reset=reset),
+            "f1": self._metrics["f1"].get_metric(reset=reset)[2],
+            "accuracy": self._metrics["accuracy"].get_metric(reset=reset),
         }
-

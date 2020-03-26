@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from overrides import overrides
 
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
@@ -10,7 +10,7 @@ from allennlp.data.fields import (
     SequenceLabelField,
 )
 from allennlp.data.instance import Instance
-from allennlp.data.tokenizers import Tokenizer, WordTokenizer
+from allennlp.data.tokenizers import Tokenizer, SpacyTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
 
@@ -20,9 +20,10 @@ class SingleSentenceDatasetReader(DatasetReader):
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = tokenizer or WordTokenizer()
+        super().__init__(lazy, cache_directory)
+        self._tokenizer = tokenizer or SpacyTokenizer()
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
 
     @overrides
@@ -31,7 +32,7 @@ class SingleSentenceDatasetReader(DatasetReader):
         tokenized_sentence = self._tokenizer.tokenize(sentence)
         fields["sentence"] = TextField(tokenized_sentence, self._token_indexers)
         if label is not None:
-            fields["label"] = LabelField(label)
+            fields["label"] = LabelField(label, skip_indexing=True)
         return Instance(fields)
 
 
@@ -41,9 +42,10 @@ class MultipleSentencesDatasetReader(DatasetReader):
         lazy: bool = False,
         tokenizer: Tokenizer = None,
         token_indexers: Dict[str, TokenIndexer] = None,
+        cache_directory: Optional[str] = None,
     ) -> None:
-        super().__init__(lazy)
-        self._tokenizer = tokenizer or WordTokenizer()
+        super().__init__(lazy, cache_directory)
+        self._tokenizer = tokenizer or SpacyTokenizer()
         self._token_indexers = token_indexers or {"tokens": SingleIdTokenIndexer()}
 
     @overrides

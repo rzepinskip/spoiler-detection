@@ -1,15 +1,18 @@
+local transformer_model = "albert-base-v2";
+local transformer_dim = 768;
+local cls_is_last_token = false;
+
 {
-  "dataset_reader": {
+  "dataset_reader":{
     "type": "goodreads_single_sentence",
-    "cache_directory": ".cache",
     "tokenizer": {
-      "type": "spacy"
+      "type": "pretrained_transformer",
+      "model_name": transformer_model
     },
     "token_indexers": {
       "tokens": {
-        "type": "single_id",
-        "namespace": "tokens",
-        "lowercase_tokens": true
+        "type": "pretrained_transformer",
+        "model_name": transformer_model,
       }
     }
   },
@@ -17,40 +20,37 @@
   "validation_data_path": "tests/fixtures/goodreads.jsonl",
   "model": {
     "type": "single_sentence_classifier",
-    "class_weights": [0.05, 0.95],
     "text_field_embedder": {
       "token_embedders": {
         "tokens": {
-          "type": "embedding",
-          "embedding_dim": 2,
-          "trainable": false
+          "type": "pretrained_transformer",
+          "model_name": transformer_model,
         }
       }
     },
     "seq2vec_encoder": {
-      "type": "boe",
-      "embedding_dim": 2,
-      "averaged": true
+       "type": "cls_pooler",
+       "embedding_dim": transformer_dim,
+       "cls_is_last_token": cls_is_last_token
     },
     "feedforward": {
-      "input_dim": 2,
-      "num_layers": 2,
-      "hidden_dims": [1, 2],
-      "activations": ["sigmoid", "linear"],
-      "dropout": [0.2, 0.0]
+      "input_dim": transformer_dim,
+      "num_layers": 1,
+      "hidden_dims": transformer_dim,
+      "activations": "tanh"
     },
     "dropout": 0.1
   },
   "data_loader": {
-    "num_workers": 2,
+    "num_workers": 0,
     "batch_sampler": {
       "type": "bucket",
-      "batch_size": 32
+      "batch_size" : 32
     }
   },
   "trainer": {
     "num_epochs": 1,
-    "cuda_device": -1,
+    "cuda_device" : -1,
     "validation_metric": "+accuracy",
     "learning_rate_scheduler": {
       "type": "slanted_triangular",
@@ -59,7 +59,7 @@
     "optimizer": {
       "type": "huggingface_adamw",
       "lr": 2e-5,
-      "weight_decay": 0.1
+      "weight_decay": 0.1,
     }
   }
 }
