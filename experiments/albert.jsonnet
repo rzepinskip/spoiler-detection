@@ -16,8 +16,8 @@ local cls_is_last_token = false;
       }
     }
   },
-  "train_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json",
-  "validation_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json",
+  "train_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
+  "validation_data_path": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
   "model": {
     "type": "single_sentence_classifier",
     "text_field_embedder": {
