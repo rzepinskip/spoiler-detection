@@ -42,11 +42,7 @@ local cls_is_last_token = false;
     "dropout": 0.1
   },
   "data_loader": {
-    "num_workers": 0,
-    "batch_sampler": {
-      "type": "bucket",
-      "batch_size" : 32
-    }
+    "batch_size" : 32
   },
   "trainer": {
     "num_epochs": 1,

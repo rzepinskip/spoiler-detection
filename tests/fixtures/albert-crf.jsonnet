@@ -1,4 +1,4 @@
-local transformer_model = "albert-base-v2";
+local transformer_model = "bert-base-cased";
 local transformer_dim = 768;
 local cls_is_last_token = false;
 
@@ -42,8 +42,7 @@ local cls_is_last_token = false;
     "dropout": 0.1
   },
   "data_loader": {
-    "num_workers": 2,
-    "batch_size" : 1
+    "batch_size" : 11
   },
   "trainer": {
     "num_epochs": 1,
