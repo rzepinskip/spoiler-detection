@@ -19,28 +19,6 @@ from allennlp.training.metrics import CategoricalAccuracy, F1Measure
 
 @Model.register("multiple_sentences_classifier")
 class MultipleSentencesClassifier(Model):
-    """
-    This `Model` implements a basic text classifier. After embedding the text into
-    a text field the resulting sequence is pooled using a `Seq2VecEncoder` and then
-    passed to a linear classification layer, which projects into the label space.e
-    `Seq2VecEncoder`.
-
-    # Parameters
-
-    vocab : `Vocabulary`
-    text_field_embedder : `TextFieldEmbedder`
-        Used to embed the input text into a `TextField`
-    seq2vec_encoder : `Seq2VecEncoder`
-        Required Seq2Vec encoder layer. Operate directly on the output
-        of the `text_field_embedder`.
-    feedforward : `FeedForward`, optional, (default = None).
-        An optional feedforward layer to apply after the seq2vec_encoder.
-    dropout : `float`, optional (default = `None`)
-        Dropout percentage to use.
-    initializer : `InitializerApplicator`, optional (default=`InitializerApplicator()`)
-        If provided, will be used to initialize the model parameters.
-    """
-
     def __init__(
         self,
         vocab: Vocabulary,
@@ -192,10 +170,6 @@ class MultipleSentencesClassifier(Model):
     def make_output_human_readable(
         self, output_dict: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
-        """
-        Does a simple argmax over the probabilities, converts index to string label, and
-        add `"label"` key to the dictionary with the result.
-        """
         output_dict["labels"] = [
             [
                 self.vocab.get_token_from_index(label, namespace="labels")

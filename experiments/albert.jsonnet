@@ -1,6 +1,7 @@
 local transformer_model = "albert-base-v2";
 local transformer_dim = 768;
 local cls_is_last_token = false;
+local use_genres = true;
 
 {
   "dataset_reader":{
@@ -33,10 +34,11 @@ local cls_is_last_token = false;
        "embedding_dim": transformer_dim,
        "cls_is_last_token": cls_is_last_token
     },
+    "use_genres": use_genres,
     "feedforward": {
-      "input_dim": transformer_dim,
+      "input_dim": if use_genres then transformer_dim+10 else transformer_dim,
       "num_layers": 1,
-      "hidden_dims": transformer_dim,
+      "hidden_dims": if use_genres then transformer_dim+10 else transformer_dim,
       "activations": "tanh"
     },
     "dropout": 0.1

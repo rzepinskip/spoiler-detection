@@ -1,19 +1,13 @@
 from typing import Dict, List, Optional
 import json
 import logging
+import numpy as np
 
 from overrides import overrides
 
 from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.fields import (
-    Field,
-    LabelField,
-    TextField,
-    ListField,
-    SequenceLabelField,
-)
-from allennlp.data.instance import Instance
+from allennlp.data.fields import ArrayField
 from allennlp.data.tokenizers import Tokenizer, SpacyTokenizer
 from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 
@@ -21,6 +15,7 @@ from spoiler_detection.dataset_readers.readers import (
     SingleSentenceDatasetReader,
     MultipleSentencesDatasetReader,
 )
+from spoiler_detection.feature_encoders import encode_genre
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -43,7 +38,12 @@ class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
             for line in data_file:
                 review_json = json.loads(line)
                 for is_spoiler, sentence in review_json["review_sentences"]:
-                    yield self.text_to_instance(sentence, is_spoiler)
+                    instance = self.text_to_instance(sentence, is_spoiler)
+                    instance.add_field(
+                        "genre",
+                        ArrayField(np.array(encode_genre(review_json["genres"]))),
+                    )
+                    yield instance
 
 
 @DatasetReader.register("goodreads_multiple_sentences")

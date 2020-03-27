@@ -17,28 +17,6 @@ from allennlp.training.metrics import CategoricalAccuracy, F1Measure
 
 @Model.register("single_sentence_classifier")
 class SingleSentenceClassifier(Model):
-    """
-    This `Model` implements a basic text classifier. After embedding the text into
-    a text field the resulting sequence is pooled using a `Seq2VecEncoder` and then 
-    passed to a linear classification layer, which projects into the label space.e
-    `Seq2VecEncoder`.
-
-    # Parameters
-
-    vocab : `Vocabulary`
-    text_field_embedder : `TextFieldEmbedder`
-        Used to embed the input text into a `TextField`
-    seq2vec_encoder : `Seq2VecEncoder`
-        Required Seq2Vec encoder layer. Operate directly on the output
-        of the `text_field_embedder`.
-    feedforward : `FeedForward`, optional, (default = None).
-        An optional feedforward layer to apply after the seq2vec_encoder.
-    dropout : `float`, optional (default = `None`)
-        Dropout percentage to use.
-    initializer : `InitializerApplicator`, optional (default=`InitializerApplicator()`)
-        If provided, will be used to initialize the model parameters.
-    """
-
     def __init__(
         self,
         vocab: Vocabulary,
@@ -47,6 +25,7 @@ class SingleSentenceClassifier(Model):
         feedforward: Optional[FeedForward] = None,
         dropout: float = None,
         class_weights: List[float] = None,
+        use_genres: bool = False,
         initializer: InitializerApplicator = InitializerApplicator(),
         **kwargs,
     ) -> None:
@@ -78,33 +57,17 @@ class SingleSentenceClassifier(Model):
             )
         else:
             self._loss = torch.nn.CrossEntropyLoss()
+
+        self.use_genres = use_genres
+
         initializer(self)
 
     def forward(  # type: ignore
-        self, sentence: TextFieldTensors, label: torch.IntTensor = None
+        self,
+        sentence: TextFieldTensors,
+        label: torch.IntTensor = None,
+        genre: torch.FloatTensor = None,
     ) -> Dict[str, torch.Tensor]:
-
-        """
-        # Parameters
-
-        sentence : TextFieldTensors
-            From a `TextField`
-        label : torch.IntTensor, optional (default = None)
-            From a `LabelField`
-
-        # Returns
-
-        An output dictionary consisting of:
-
-        logits : torch.FloatTensor
-            A tensor of shape `(batch_size, num_labels)` representing
-            unnormalized log probabilities of the label.
-        probs : torch.FloatTensor
-            A tensor of shape `(batch_size, num_labels)` representing
-            probabilities of the label.
-        loss : torch.FloatTensor, optional
-            A scalar loss to be optimised.
-        """
         embedded_text = self._text_field_embedder(sentence)
         mask = get_text_field_mask(sentence)
 
@@ -112,6 +75,9 @@ class SingleSentenceClassifier(Model):
 
         if self._dropout:
             embedded_text = self._dropout(embedded_text)
+
+        if self.use_genres:
+            embedded_text = torch.cat((embedded_text, genre), dim=-1)
 
         if self._feedforward is not None:
             embedded_text = self._feedforward(embedded_text)
@@ -132,10 +98,6 @@ class SingleSentenceClassifier(Model):
     def make_output_human_readable(
         self, output_dict: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
-        """
-        Does a simple argmax over the probabilities, converts index to string label, and
-        add `"label"` key to the dictionary with the result.
-        """
         predictions = output_dict["probs"]
         if predictions.dim() == 2:
             predictions_list = [predictions[i] for i in range(predictions.shape[0])]
