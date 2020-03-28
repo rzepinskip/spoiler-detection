@@ -58,7 +58,7 @@ class TestGoodreadsSingleSentenceDatasetReader(AllenNlpTestCase):
             },
         }
 
-        assert len(instances) == 156
+        assert len(instances) == 59
         fields = instances[23].fields
         assert [t.text for t in fields["sentence"].tokens] == instance1["sentence"]
         assert fields["label"].label == instance1["label"]
@@ -139,7 +139,7 @@ class TestGoodreadsMultipleSentencesDatasetReader(AllenNlpTestCase):
             "label": 1,
         }
 
-        assert len(instances) == 10
+        assert len(instances) == 3
         fields = instances[2].fields
         assert [t.text for t in fields["sentences"][0].tokens] == instance1_sentence1[
             "sentence"

@@ -42,7 +42,7 @@ local cls_is_last_token = false;
     "dropout": 0.1
   },
   "data_loader": {
-    "batch_size" : 11
+    "batch_size" : 1
   },
   "trainer": {
     "num_epochs": 1,

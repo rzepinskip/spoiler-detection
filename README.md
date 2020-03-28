@@ -13,11 +13,3 @@ allennlp train tests/fixtures/albert-crf.jsonnet \
     --file-friendly-logging \
     -f
 ```
-
-```
-allennlp train tests/fixtures/multiple_sentences_classifier.jsonnet \
-    -s tmp \
-    --include-package spoiler_detection \
-    --file-friendly-logging \
-    -f
-```
