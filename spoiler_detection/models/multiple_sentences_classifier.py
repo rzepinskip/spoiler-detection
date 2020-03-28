@@ -14,7 +14,7 @@ from allennlp.modules import (
 )
 from allennlp.nn import InitializerApplicator
 
-from allennlp.training.metrics import CategoricalAccuracy, F1Measure
+from allennlp.training.metrics import CategoricalAccuracy, F1Measure, Auc
 
 
 @Model.register("multiple_sentences_classifier")
@@ -54,6 +54,7 @@ class MultipleSentencesClassifier(Model):
         self._metrics = {
             "accuracy": CategoricalAccuracy(),
             "f1": F1Measure(positive_label=1),
+            "auc": Auc(positive_label=1),
         }
         if class_weights is not None:
             self._loss = torch.nn.CrossEntropyLoss(
@@ -166,13 +167,16 @@ class MultipleSentencesClassifier(Model):
             log_likelihood = self._crf(logits, labels, sentence_masks)
             output_dict["loss"] = -log_likelihood
 
-            class_probabilities = logits * 0.0
+            probs = logits * 0.0
             for i, instance_labels in enumerate(predicted_labels):
                 for j, label_id in enumerate(instance_labels):
-                    class_probabilities[i, j, label_id] = 1
+                    probs[i, j, label_id] = 1
 
             for metric in self._metrics.values():
-                metric(class_probabilities, labels, sentence_masks)
+                if isinstance(metric, Auc):
+                    metric(probs[:, :, 1].flatten(), labels.flatten())
+                else:
+                    metric(probs, labels, sentence_masks)
 
         return output_dict
 
@@ -193,4 +197,5 @@ class MultipleSentencesClassifier(Model):
         return {
             "f1": self._metrics["f1"].get_metric(reset=reset)[2],
             "accuracy": self._metrics["accuracy"].get_metric(reset=reset),
+            "auc": self._metrics["auc"].get_metric(reset=reset),
         }

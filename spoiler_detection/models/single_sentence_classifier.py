@@ -12,7 +12,7 @@ from allennlp.modules import (
 )
 from allennlp.nn import InitializerApplicator
 from allennlp.nn.util import get_text_field_mask
-from allennlp.training.metrics import CategoricalAccuracy, F1Measure
+from allennlp.training.metrics import CategoricalAccuracy, F1Measure, Auc
 
 
 @Model.register("single_sentence_classifier")
@@ -50,6 +50,7 @@ class SingleSentenceClassifier(Model):
         self._metrics = {
             "accuracy": CategoricalAccuracy(),
             "f1": F1Measure(positive_label=1),
+            "auc": Auc(positive_label=1),
         }
         if class_weights is not None:
             self._loss = torch.nn.CrossEntropyLoss(
@@ -90,7 +91,10 @@ class SingleSentenceClassifier(Model):
             loss = self._loss(logits, label.long().view(-1))
             output_dict["loss"] = loss
             for metric in self._metrics.values():
-                metric(logits, label)
+                if isinstance(metric, Auc):
+                    metric(probs[:, 1], label)
+                else:
+                    metric(logits, label)
 
         return output_dict
 
@@ -117,4 +121,5 @@ class SingleSentenceClassifier(Model):
         return {
             "f1": self._metrics["f1"].get_metric(reset=reset)[2],
             "accuracy": self._metrics["accuracy"].get_metric(reset=reset),
+            "auc": self._metrics["auc"].get_metric(reset=reset),
         }
