@@ -63,9 +63,7 @@ class MultipleSentencesClassifier(Model):
             self._loss = torch.nn.CrossEntropyLoss()
 
         num_classes = 2
-        self._classification_layer = TimeDistributed(
-            torch.nn.Linear(classifier_input_dim, num_classes)
-        )
+        self._classification_layer = torch.nn.Linear(classifier_input_dim, num_classes)
 
         constraints = None  # allowed_transitions(label_encoding, labels)
         self._crf = ConditionalRandomField(
@@ -132,21 +130,20 @@ class MultipleSentencesClassifier(Model):
                 embedded_sentences[:, i, :, :], mask=token_masks[:, i, :]
             )
 
-            # TODO apply this layers on stacked sentences output somehow
             if self._dropout:
                 embedded_text = self._dropout(embedded_text)
 
             if self.use_genres:
                 embedded_text = torch.cat((embedded_text, genre), dim=-1)
 
-            if self._feedforward is not None:
-                embedded_text = self._feedforward(embedded_text)
-
             encoded_sentences.append(embedded_text)
 
         encoded_sentences = torch.stack(
             encoded_sentences, 1
         )  # size: (n_batch, n_sents, n_embedding)
+
+        if self._feedforward is not None:
+            encoded_sentences = self._feedforward(encoded_sentences)
 
         # CRF prediction
         logits = self._classification_layer(
