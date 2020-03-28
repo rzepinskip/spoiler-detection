@@ -27,6 +27,7 @@ class MultipleSentencesClassifier(Model):
         feedforward: Optional[FeedForward] = None,
         dropout: float = None,
         class_weights: List[float] = None,
+        use_genres: bool = False,
         initializer: InitializerApplicator = InitializerApplicator(),
         **kwargs,
     ) -> None:
@@ -35,16 +36,20 @@ class MultipleSentencesClassifier(Model):
         self._text_field_embedder = text_field_embedder
 
         self._seq2vec_encoder = seq2vec_encoder
-        self._feedforward = feedforward
-        if feedforward is not None:
-            self._classifier_input_dim = self._feedforward.get_output_dim()
-        else:
-            self._classifier_input_dim = self._seq2vec_encoder.get_output_dim()
-
         if dropout:
             self._dropout = torch.nn.Dropout(dropout)
         else:
             self._dropout = None
+
+        self._feedforward = feedforward
+        if feedforward is not None:
+            classifier_input_dim = self._feedforward.get_output_dim()
+        else:
+            classifier_input_dim = (
+                self._seq2vec_encoder.get_output_dim() + 10
+                if use_genres
+                else seq2vec_encoder.get_output_dim()
+            )
 
         self._metrics = {
             "accuracy": CategoricalAccuracy(),
@@ -57,20 +62,22 @@ class MultipleSentencesClassifier(Model):
         else:
             self._loss = torch.nn.CrossEntropyLoss()
 
-        self._num_classes = 2
+        num_classes = 2
         self._classification_layer = TimeDistributed(
-            torch.nn.Linear(self._classifier_input_dim, self._num_classes)
+            torch.nn.Linear(classifier_input_dim, num_classes)
         )
 
         constraints = None  # allowed_transitions(label_encoding, labels)
         self._crf = ConditionalRandomField(
-            self._num_classes, constraints, include_start_end_transitions=False
+            num_classes, constraints, include_start_end_transitions=False
         )
+
+        self.use_genres = use_genres
 
         initializer(self)
 
     def forward(  # type: ignore
-        self, sentences, labels
+        self, sentences, labels, genre: torch.FloatTensor = None,
     ) -> Dict[str, torch.Tensor]:
         def get_text_field_mask(
             text_field_tensors: Dict[str, Dict[str, torch.Tensor]],
@@ -126,11 +133,14 @@ class MultipleSentencesClassifier(Model):
             )
 
             # TODO apply this layers on stacked sentences output somehow
-            # if self._dropout:
-            #     embedded_text = self._dropout(embedded_text)
+            if self._dropout:
+                embedded_text = self._dropout(embedded_text)
 
-            # if self._feedforward is not None:
-            #     embedded_text = self._feedforward(embedded_text)
+            if self.use_genres:
+                embedded_text = torch.cat((embedded_text, genre), dim=-1)
+
+            if self._feedforward is not None:
+                embedded_text = self._feedforward(embedded_text)
 
             encoded_sentences.append(embedded_text)
 

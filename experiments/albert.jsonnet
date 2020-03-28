@@ -38,7 +38,7 @@ local use_genres = true;
     "feedforward": {
       "input_dim": if use_genres then transformer_dim+10 else transformer_dim,
       "num_layers": 1,
-      "hidden_dims": if use_genres then transformer_dim+10 else transformer_dim,
+      "hidden_dims": 2,
       "activations": "tanh"
     },
     "dropout": 0.1

@@ -68,4 +68,8 @@ class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
                     sentences.append(sentence)
                     labels.append(int(is_spoiler))
 
-                yield self.text_to_instance(sentences, labels)
+                instance = self.text_to_instance(sentences, labels)
+                instance.add_field(
+                    "genre", ArrayField(np.array(encode_genre(review_json["genres"]))),
+                )
+                yield instance
