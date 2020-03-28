@@ -130,17 +130,20 @@ class MultipleSentencesClassifier(Model):
                 embedded_sentences[:, i, :, :], mask=token_masks[:, i, :]
             )
 
-            if self._dropout:
-                embedded_text = self._dropout(embedded_text)
-
-            if self.use_genres:
-                embedded_text = torch.cat((embedded_text, genre), dim=-1)
-
             encoded_sentences.append(embedded_text)
 
         encoded_sentences = torch.stack(
             encoded_sentences, 1
         )  # size: (n_batch, n_sents, n_embedding)
+
+        if self._dropout:
+            encoded_sentences = self._dropout(encoded_sentences)
+
+        if self.use_genres:
+            genres_duplicated = torch.stack([genre for _ in range(n_sents)], 1)
+            encoded_sentences = torch.cat(
+                (encoded_sentences, genres_duplicated), dim=-1,
+            )
 
         if self._feedforward is not None:
             encoded_sentences = self._feedforward(encoded_sentences)
