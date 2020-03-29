@@ -21,6 +21,13 @@ from spoiler_detection.feature_encoders import encode_genre
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
+def open_file(path, mode):
+    if path.endswith("json") or path.endswith("jsonl"):
+        return open(path, mode)
+    else:
+        return gzip.open(path, mode)
+
+
 @DatasetReader.register("goodreads_single_sentence")
 class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
     def __init__(
@@ -34,7 +41,7 @@ class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
 
     @overrides
     def _read(self, file_path):
-        with gzip.open(cached_path(file_path), "r") as data_file:
+        with open_file(cached_path(file_path), "r") as data_file:
             logger.info("Reading instances from lines in file at: %s", file_path)
             for line in data_file:
                 review_json = json.loads(line)
@@ -60,7 +67,7 @@ class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
 
     @overrides
     def _read(self, file_path):
-        with gzip.open(cached_path(file_path), "r") as data_file:
+        with open_file(cached_path(file_path), "r") as data_file:
             logger.info("Reading instances from lines in file at: %s", file_path)
             for line in data_file:
                 review_json = json.loads(line)
