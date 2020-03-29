@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 import json
 import logging
 import numpy as np
+import gzip
 
 from overrides import overrides
 
@@ -33,7 +34,7 @@ class GoodreadsSingleSentenceDatasetReader(SingleSentenceDatasetReader):
 
     @overrides
     def _read(self, file_path):
-        with open(cached_path(file_path), "r") as data_file:
+        with gzip.open(cached_path(file_path), "r") as data_file:
             logger.info("Reading instances from lines in file at: %s", file_path)
             for line in data_file:
                 review_json = json.loads(line)
@@ -59,7 +60,7 @@ class GoodreadsMultipleSentencesDatasetReader(MultipleSentencesDatasetReader):
 
     @overrides
     def _read(self, file_path):
-        with open(cached_path(file_path), "r") as data_file:
+        with gzip.open(cached_path(file_path), "r") as data_file:
             logger.info("Reading instances from lines in file at: %s", file_path)
             for line in data_file:
                 review_json = json.loads(line)
