@@ -63,27 +63,19 @@ class BertSequential(Model):
         genre: torch.FloatTensor = None,
     ) -> Dict[str, torch.Tensor]:
         embedded_sentences = self._text_field_embedder(sentences)
-        mask = get_text_field_mask(sentences)
 
         if self._dropout:
             embedded_sentences = self._dropout(embedded_sentences)
 
-        # START: SEP tokens
-
-        # The following code collects vectors of the SEP tokens from all the examples in the batch,
-        # and arrange them in one list. It does the same for the labels and confidences.
-        # TODO: replace 103 with '[SEP]'
         sentences_mask = (
             sentences["tokens"]["token_ids"] == 102
-        )  # mask for all the SEP tokens in the batch
+        ) 
         embedded_sentences = embedded_sentences[
             sentences_mask
-        ]  # given batch_size x num_sentences_per_example x sent_len x vector_len
-        # returns num_sentences_per_batch x vector_len
+        ]  
         assert embedded_sentences.dim() == 2
         num_sentences = embedded_sentences.shape[0]
-        # for the rest of the code in this model to work, think of the data we have as one example
-        # with so many sentences and a batch of size 1
+
         batch_size = 1
         embedded_sentences = embedded_sentences.unsqueeze(dim=0)
         embedded_sentences = self._dropout(embedded_sentences)

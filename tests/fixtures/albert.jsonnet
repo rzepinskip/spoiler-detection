@@ -8,7 +8,8 @@ local use_genres = true;
     "type": "goodreads_single_sentence",
     "tokenizer": {
       "type": "pretrained_transformer",
-      "model_name": transformer_model
+      "model_name": transformer_model,
+      "add_special_tokens": true
     },
     "token_indexers": {
       "tokens": {

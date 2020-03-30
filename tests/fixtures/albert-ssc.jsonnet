@@ -37,7 +37,7 @@ local max_length = 512;
     "dropout": 0.1
   },
   "data_loader": {
-    "batch_size" : 1
+    "batch_size" : 4
   },
   "trainer": {
     "num_epochs": 1,
