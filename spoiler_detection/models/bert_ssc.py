@@ -68,11 +68,9 @@ class BertSequential(Model):
             embedded_sentences = self._dropout(embedded_sentences)
 
         sentences_mask = (
-            sentences["tokens"]["token_ids"] == 102
-        ) 
-        embedded_sentences = embedded_sentences[
-            sentences_mask
-        ]  
+            sentences["tokens"]["token_ids"] == 3  # 102 for bert, 3 for albert
+        )
+        embedded_sentences = embedded_sentences[sentences_mask]
         assert embedded_sentences.dim() == 2
         num_sentences = embedded_sentences.shape[0]
 
