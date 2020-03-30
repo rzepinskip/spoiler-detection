@@ -2,23 +2,23 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import torch.nn as nn
 import torch
-from transformers import BertModel, BertTokenizer
+from transformers import AutoModel, AutoTokenizer
 from sklearn.metrics import accuracy_score
-from spoiler_detection.data_readers.goodreads import get_goodreads_dataset
+from spoiler_detection.data_readers.goodreads import GoodreadsSingleSentenceDataset
 
 
-class BertFinetuner(pl.LightningModule):
-    def __init__(self):
-        super(BertFinetuner, self).__init__()
+class PretrainedSingleSentenceModel(pl.LightningModule):
+    def __init__(self, model_type, dataset):
+        super(PretrainedSingleSentenceModel, self).__init__()
 
-        model_type = "bert-base-cased"
-        self.bert = BertModel.from_pretrained(model_type, output_attentions=True)
-        self.tokenizer = BertTokenizer.from_pretrained(model_type)
+        self.model = AutoModel.from_pretrained(model_type)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_type)
+        self.dataset = dataset
 
-        self.W = nn.Linear(self.bert.config.hidden_size, 2)
+        self.W = nn.Linear(self.model.config.hidden_size, 2)
 
     def forward(self, input_ids, attention_mask, token_type_ids):
-        h, _, attn = self.bert(
+        h, _ = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -26,12 +26,12 @@ class BertFinetuner(pl.LightningModule):
 
         h_cls = h[:, 0]
         logits = self.W(h_cls)
-        return logits, attn
+        return logits
 
     def training_step(self, batch, batch_nb):
         input_ids, attention_mask, token_type_ids, label = batch
 
-        y_hat, attn = self(input_ids, attention_mask, token_type_ids)
+        y_hat = self(input_ids, attention_mask, token_type_ids)  # calls forward
 
         loss = F.cross_entropy(y_hat, label)
 
@@ -44,7 +44,7 @@ class BertFinetuner(pl.LightningModule):
     def validation_step(self, batch, batch_nb):
         input_ids, attention_mask, token_type_ids, label = batch
 
-        y_hat, attn = self(input_ids, attention_mask, token_type_ids)
+        y_hat = self(input_ids, attention_mask, token_type_ids)
 
         loss = F.cross_entropy(y_hat, label)
 
@@ -67,8 +67,8 @@ class BertFinetuner(pl.LightningModule):
         )
 
     def prepare_data(self):
-        self.train_dl = get_goodreads_dataset(self.tokenizer, "train")
-        self.val_dl = get_goodreads_dataset(self.tokenizer, "val")
+        self.train_dl = self.dataset.get_dataloader("train", self.tokenizer)
+        self.val_dl = self.dataset.get_dataloader("val", self.tokenizer)
 
     def train_dataloader(self):
         return self.train_dl

@@ -1,9 +1,12 @@
-from spoiler_detection.models.basic_bert import BertFinetuner
 from pytorch_lightning import Trainer
+
+from spoiler_detection.models import PretrainedSingleSentenceModel
+from spoiler_detection.data_readers import GoodreadsSingleSentenceDataset
 from spoiler_detection.loggers import ResumableTestTubeLogger
 
 if __name__ == "__main__":
-    model = BertFinetuner()
+    dataset = GoodreadsSingleSentenceDataset(max_length=128)
+    model = PretrainedSingleSentenceModel("albert-base-v2", dataset)
 
     logger = ResumableTestTubeLogger()
     trainer = Trainer(

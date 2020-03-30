@@ -3,17 +3,20 @@ from torch import tensor
 from torch.utils.data import DataLoader, Dataset
 from functools import partial
 import json
+import gzip
+
+DATASET_MAP = {
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
+    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
+    "dev": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-lite.json.gz",
+}
 
 
-class TextLineDataset(Dataset):
-    def __init__(self, path):
-        super(TextLineDataset).__init__()
-        self.data = []
-        with open(path) as file:
-            for line in file:
-                review_json = json.loads(line)
-                for label, sentence in review_json["review_sentences"]:
-                    self.data.append({"label": label, "sentence": sentence})
+class ListDataset(Dataset):
+    def __init__(self, data):
+        super(ListDataset).__init__()
+        self.data = data
 
     def __getitem__(self, idx):
         return self.data[idx]
@@ -22,44 +25,34 @@ class TextLineDataset(Dataset):
         return len(self.data)
 
 
-def prepare_sample(tokenizer, samples):
-    max_length = 128
-    sentences = [x["sentence"] for x in samples]
-    labels = [x["label"] for x in samples]
+class GoodreadsSingleSentenceDataset:
+    def __init__(self, max_length=128):
+        super().__init__()
+        self._max_length = max_length
 
-    output = tokenizer.batch_encode_plus(
-        sentences, max_length=max_length, pad_to_max_length=True
-    )
-    return (
-        tensor(output["input_ids"]),
-        tensor(output["attention_mask"]),
-        tensor(output["token_type_ids"]),
-        tensor(labels).long(),
-    )
+    def get_dataloader(self, dataset_type, tokenizer):
+        def prepare_sample(samples):
+            sentences = [x["sentence"] for x in samples]
+            labels = [x["label"] for x in samples]
 
+            output = tokenizer.batch_encode_plus(
+                sentences, max_length=self._max_length, pad_to_max_length=True
+            )
+            return (
+                tensor(output["input_ids"]),
+                tensor(output["attention_mask"]),
+                tensor(output["token_type_ids"]),
+                tensor(labels).long(),
+            )
 
-def get_goodreads_dataset(tokenizer, dataset_type):
-    if dataset_type == "train":
-        path = cached_path(
-            "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json"
-        )
-    elif dataset_type == "val":
-        path = cached_path(
-            "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json"
-        )
-    elif dataset_type == "test":
-        path = cached_path(
-            "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json"
-        )
-    elif dataset_type == "dev":
-        path = cached_path(
-            "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-lite.json"
-        )
-    else:
-        raise ValueError("Wrong dataset type")
+        data = []
+        with gzip.open(cached_path(DATASET_MAP[dataset_type])) as file:
+            for line in file:
+                review_json = json.loads(line)
+                for label, sentence in review_json["review_sentences"]:
+                    data.append({"label": label, "sentence": sentence})
 
-    dataset = TextLineDataset(path)
-    prepare_sample_partial = partial(prepare_sample, tokenizer)
-    return DataLoader(
-        dataset, num_workers=2, collate_fn=prepare_sample_partial, batch_size=32
-    )
+        dataset = ListDataset(data)
+        return DataLoader(
+            dataset, num_workers=0, collate_fn=prepare_sample, batch_size=32,
+        )
