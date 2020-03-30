@@ -8,16 +8,20 @@ from spoiler_detection.data_readers.goodreads import GoodreadsSingleSentenceData
 
 
 class PretrainedSingleSentenceModel(pl.LightningModule):
-    def __init__(self, model_type, dataset):
+    def __init__(self, model_type, dataset, use_genres=False):
         super(PretrainedSingleSentenceModel, self).__init__()
 
         self.model = AutoModel.from_pretrained(model_type)
         self.tokenizer = AutoTokenizer.from_pretrained(model_type)
         self.dataset = dataset
 
-        self.W = nn.Linear(self.model.config.hidden_size, 2)
+        self._use_genres = use_genres
+        if use_genres:
+            self.W = nn.Linear(self.model.config.hidden_size + 10, 2)
+        else:
+            self.W = nn.Linear(self.model.config.hidden_size, 2)
 
-    def forward(self, input_ids, attention_mask, token_type_ids):
+    def forward(self, input_ids, attention_mask, token_type_ids, genres):
         h, _ = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -25,13 +29,17 @@ class PretrainedSingleSentenceModel(pl.LightningModule):
         )
 
         h_cls = h[:, 0]
+
+        if self._use_genres:
+            h_cls = torch.cat((h_cls, genres), dim=-1)
+
         logits = self.W(h_cls)
         return logits
 
     def training_step(self, batch, batch_nb):
-        input_ids, attention_mask, token_type_ids, label = batch
+        input_ids, attention_mask, token_type_ids, genres, label = batch
 
-        y_hat = self(input_ids, attention_mask, token_type_ids)  # calls forward
+        y_hat = self(input_ids, attention_mask, token_type_ids, genres)  # calls forward
 
         loss = F.cross_entropy(y_hat, label)
 
@@ -42,9 +50,9 @@ class PretrainedSingleSentenceModel(pl.LightningModule):
         return {"loss": loss, "log": tensorboard_logs, "progress_bar": tensorboard_logs}
 
     def validation_step(self, batch, batch_nb):
-        input_ids, attention_mask, token_type_ids, label = batch
+        input_ids, attention_mask, token_type_ids, genres, label = batch
 
-        y_hat = self(input_ids, attention_mask, token_type_ids)
+        y_hat = self(input_ids, attention_mask, token_type_ids, genres)
 
         loss = F.cross_entropy(y_hat, label)
 
