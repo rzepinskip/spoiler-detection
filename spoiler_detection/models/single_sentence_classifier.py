@@ -94,7 +94,7 @@ class SingleSentenceClassifier(Model):
                 if isinstance(metric, Auc):
                     metric(probs[:, 1], label)
                 else:
-                    metric(logits, label)
+                    metric(probs, label)
 
         return output_dict
 
