@@ -14,7 +14,12 @@ class BaseModel(pl.LightningModule):
         probs = torch.cat([x["probs"] for x in outputs])
         label = torch.cat([x["label"] for x in outputs])
 
-        metrics = get_validation_metrics(probs, label, "avg_val")
+        if self.global_step == 0:
+            return {"val_loss": avg_loss}
+
+        metrics = get_validation_metrics(probs, label)
+        metrics["epoch"] = self.current_epoch
+
         return {
             "val_loss": avg_loss,
             "log": metrics,
