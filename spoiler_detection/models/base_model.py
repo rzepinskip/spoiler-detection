@@ -1,3 +1,5 @@
+from argparse import ArgumentParser
+
 import pytorch_lightning as pl
 import torch
 
@@ -35,3 +37,8 @@ class BaseModel(pl.LightningModule):
 
     def val_dataloader(self):
         return self.val_dl
+
+    @classmethod
+    def add_model_specific_args(cls, parent_parser):
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        return parser

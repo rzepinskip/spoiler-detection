@@ -43,22 +43,21 @@ class ResumableTestTubeLogger(TestTubeLogger):
 
 
 class ResumableWandbLogger(WandbLogger):
-    def __init__(self, id=None, sync_checkpoints=False):
-        super().__init__(id=id,)
-        self._sync_checkpoints = sync_checkpoints
-        if id is not None:
-            api = wandb.Api()
-            run = api.run(f"rzepinskip/spoiler_detection/{id}")
+    def __init__(self, id=None, offline=False):
+        super().__init__(id=id, offline=offline)
+        if id is not None and offline == False:
+            run = wandb.Api().run(f"rzepinskip/spoiler_detection/{id}")
             for file in run.files():
                 if file.name.endswith(".ckpt"):
                     print(f"Downloading {file.name}")
                     file.download(root=self.experiment.dir)
 
+    def log_hyperparams(self, params) -> None:
+        params = self._convert_params(params)
+        self.experiment.config.update(params, allow_val_change=True)
+
     def get_checkpoints_root(self):
-        if self._sync_checkpoints:
-            return self.experiment.dir
-        else:
-            return "wandb"
+        return self.experiment.dir
 
     def get_last_checkpoint(self):
         if self.experiment.resumed == False:
@@ -71,6 +70,11 @@ class ResumableWandbLogger(WandbLogger):
             "checkpoints",
         )
 
-        return sorted(
+        checkpoints = sorted(
             glob.glob(os.path.join(last_version_checkpoints_folder, "*.ckpt",))
-        )[-1]
+        )
+
+        if len(checkpoints) == 0:
+            raise ValueError("No checkpoints to restore")
+
+        return checkpoints[-1]

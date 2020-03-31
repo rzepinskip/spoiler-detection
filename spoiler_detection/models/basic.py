@@ -8,7 +8,7 @@ from spoiler_detection.models.base_model import BaseModel
 
 
 class BasicModel(BaseModel):
-    def __init__(self, dataset):
+    def __init__(self, dataset, hparams):
         super(BasicModel, self).__init__(dataset)
 
         self.tokenizer = AutoTokenizer.from_pretrained("albert-base-v2")
@@ -29,6 +29,7 @@ class BasicModel(BaseModel):
 
         loss = self._loss(logits, label)
         metrics = get_training_metrics(probs, label)
+        metrics["train_loss"] = loss
         return {"loss": loss, "log": metrics, "progress_bar": metrics}
 
     def validation_step(self, batch, batch_nb):

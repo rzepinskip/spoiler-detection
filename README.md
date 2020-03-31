@@ -1,27 +1,11 @@
 ```
-allennlp train tests/fixtures/single_sentence_classifier.json \
-    -s tmp \
-    --include-package spoiler_detection
-allennlp predict tests/fixtures/single_sentence_classifier.tar.gz \
-    tests/fixtures/goodreads.jsonl \
-    --include-package spoiler_detection \
-    --predictor single_sentence_predictor \
-    --use-dataset-reader
-allennlp predict tests/fixtures/single_sentence_classifier.tar.gz \
-    tests/fixtures/goodreads.jsonl \
-    --include-package spoiler_detection \
-    --use-dataset-reader
+python train.py  --model_name BasicModel --dataset_name GoodreadsSingleSentenceDataset 
 ```
 
 ```
-allennlp train tests/fixtures/multiple_sentences_classifier.json \
-    -s tmp \
-    --include-package spoiler_detection
+python train.py  --model_name BasicModel --dataset_name GoodreadsSingleSentenceDataset --tpu
 ```
 
 ```
-allennlp train experiments/lstm_sentence_encoder_with_glove.json \
-    -s tmp \
-    --include-package spoiler_detection \
-    --file-friendly-logging
+python train.py  --model_name BasicModel --dataset_name GoodreadsSingleSentenceDataset --tpu --run_id 22cop5wx
 ```

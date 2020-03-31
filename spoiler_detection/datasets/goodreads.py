@@ -17,9 +17,9 @@ DATASET_MAP = {
 
 
 class GoodreadsSingleSentenceDataset(BaseDataset):
-    def __init__(self, max_length=128):
+    def __init__(self, hparams):
         super().__init__()
-        self._max_length = max_length
+        self._max_length = hparams.max_length
 
     def get_dataloader(self, dataset_type, tokenizer):
         def prepare_sample(samples):

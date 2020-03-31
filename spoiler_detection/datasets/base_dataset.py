@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from argparse import ArgumentParser
 
 from torch.utils.data import Dataset
 
@@ -19,3 +20,9 @@ class BaseDataset:
     @abstractmethod
     def get_dataloader(self, dataset_type, tokenizer):
         pass
+
+    @classmethod
+    def add_dataset_specific_args(cls, parent_parser):
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser.add_argument("--max_length", type=int, default=128)
+        return parser
