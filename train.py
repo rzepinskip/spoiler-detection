@@ -20,7 +20,6 @@ def main(args):
 
     wandb_logger = ResumableWandbLogger(id=args.run_id, offline=args.dry_run)
     wandb_logger.log_hyperparams(args)
-    wandb_logger.watch(model)
 
     params = {
         "logger": wandb_logger,

@@ -3,7 +3,7 @@ from sklearn import metrics
 
 
 def get_training_metrics(probs, truth):
-    probs, truth = probs.detach(), truth.detach()
+    probs, truth = probs.cpu().detach(), truth.cpu().detach()
     predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(predicted, truth)
 
@@ -13,7 +13,7 @@ def get_training_metrics(probs, truth):
 
 
 def get_validation_metrics(probs, truth):
-    probs, truth = probs.detach(), truth.detach()
+    probs, truth = probs.cpu().detach(), truth.cpu().detach()
     predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(predicted, truth)
     auc = metrics.roc_auc_score(truth, probs[:, 1],)
@@ -25,7 +25,7 @@ def get_validation_metrics(probs, truth):
 
 
 def get_test_metrics(probs, truth):
-    probs, truth = probs.detach(), truth.detach()
+    probs, truth = probs.cpu().detach(), truth.cpu().detach()
     predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(predicted, truth)
     auc = metrics.roc_auc_score(truth, probs[:, 1],)
