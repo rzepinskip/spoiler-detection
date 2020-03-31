@@ -1,12 +1,12 @@
 from pytorch_lightning import Trainer
 
-from spoiler_detection.models import PretrainedSingleSentenceModel
-from spoiler_detection.data_readers import GoodreadsSingleSentenceDataset
+from spoiler_detection.datasets import GoodreadsSingleSentenceDataset
 from spoiler_detection.loggers import ResumableTestTubeLogger
+from spoiler_detection.models import PretrainedSingleSentenceModel
 
 if __name__ == "__main__":
     dataset = GoodreadsSingleSentenceDataset(max_length=128)
-    model = PretrainedSingleSentenceModel("albert-base-v2", dataset)
+    model = PretrainedSingleSentenceModel(dataset, "albert-base-v2")
 
     logger = ResumableTestTubeLogger()
     trainer = Trainer(

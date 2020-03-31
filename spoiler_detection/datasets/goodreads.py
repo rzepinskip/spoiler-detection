@@ -1,9 +1,11 @@
-from transformers import cached_path
-from torch import tensor
-from torch.utils.data import DataLoader, Dataset
-from functools import partial
-import json
 import gzip
+import json
+
+from torch import tensor
+from torch.utils.data import DataLoader
+from transformers import cached_path
+
+from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
 from spoiler_detection.feature_encoders import encode_genre
 
 DATASET_MAP = {
@@ -14,19 +16,7 @@ DATASET_MAP = {
 }
 
 
-class ListDataset(Dataset):
-    def __init__(self, data):
-        super(ListDataset).__init__()
-        self.data = data
-
-    def __getitem__(self, idx):
-        return self.data[idx]
-
-    def __len__(self):
-        return len(self.data)
-
-
-class GoodreadsSingleSentenceDataset:
+class GoodreadsSingleSentenceDataset(BaseDataset):
     def __init__(self, max_length=128):
         super().__init__()
         self._max_length = max_length
