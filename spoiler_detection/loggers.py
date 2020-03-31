@@ -44,7 +44,7 @@ class ResumableTestTubeLogger(TestTubeLogger):
 
 class ResumableWandbLogger(WandbLogger):
     def __init__(self, id=None, offline=False):
-        super().__init__(id=id, offline=offline)
+        super().__init__(id=id, offline=offline, project="spoiler_detection")
         if id is not None and offline == False:
             run = wandb.Api().run(f"rzepinskip/spoiler_detection/{id}")
             for file in run.files():
