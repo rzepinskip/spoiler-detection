@@ -33,6 +33,7 @@ def main(args):
 
     if args.tpu:
         params["num_tpu_cores"] = 8
+        params["precision"] = 16
 
     trainer = Trainer(**params)
     trainer.fit(model)
