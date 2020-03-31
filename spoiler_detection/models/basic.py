@@ -41,6 +41,14 @@ class BasicModel(BaseModel):
         loss = self._loss(logits, label)
         return {"loss": loss, "probs": probs, "label": label}
 
+    def test_step(self, batch, batch_nb):
+        input_ids, attention_mask, token_type_ids, genres, label = batch
+
+        logits = self(input_ids, attention_mask, token_type_ids, genres)
+        probs = torch.nn.functional.softmax(logits, dim=-1)
+
+        return {"probs": probs, "label": label}
+
     def configure_optimizers(self):
         return torch.optim.Adam(
             [p for p in self.parameters() if p.requires_grad], lr=2e-05, eps=1e-08
