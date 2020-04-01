@@ -24,7 +24,7 @@ class PretrainedSingleSentenceModel(BaseModel):
             classifier_input_dim = self.model.config.hidden_size
 
         self._classification_layer = nn.Linear(classifier_input_dim, 2)
-        self._loss = torch.nn.CrossEntropyLoss(weight=torch.FloatTensor([0.8, 0.2]))
+        self._loss = torch.nn.CrossEntropyLoss(weight=torch.FloatTensor([0.2, 0.8]))
 
     def forward(self, input_ids, attention_mask, token_type_ids, genres):
         h, _ = self.model(
