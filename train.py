@@ -2,7 +2,11 @@ from argparse import ArgumentParser
 
 from pytorch_lightning import Trainer
 
-from spoiler_detection.datasets import GoodreadsSingleSentenceDataset
+from spoiler_detection.datasets import (
+    GoodreadsMultiSentenceDataset,
+    GoodreadsSingleSentenceDataset,
+    GoodreadsSscDataset,
+)
 from spoiler_detection.loggers import ResumableWandbLogger
 from spoiler_detection.models import BasicModel, PretrainedSingleSentenceModel
 
@@ -11,7 +15,11 @@ MODELS = {
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
 }
 
-DATASETS = {"GoodreadsSingleSentenceDataset": GoodreadsSingleSentenceDataset}
+DATASETS = {
+    "GoodreadsMultiSentenceDataset": GoodreadsMultiSentenceDataset,
+    "GoodreadsSingleSentenceDataset": GoodreadsSingleSentenceDataset,
+    "GoodreadsSscDataset": GoodreadsSscDataset,
+}
 
 
 def main(args):
