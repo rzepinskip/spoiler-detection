@@ -2,21 +2,35 @@ from argparse import ArgumentParser
 
 from pytorch_lightning import Trainer
 
-from spoiler_detection.datasets import GoodreadsSingleSentenceDataset
+from spoiler_detection.datasets import (
+    GoodreadsMultiSentenceDataset,
+    GoodreadsSingleSentenceDataset,
+    GoodreadsSscDataset,
+)
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import BasicModel, PretrainedSingleSentenceModel
+from spoiler_detection.models import (
+    BasicModel,
+    PretrainedSingleSentenceModel,
+    PretrainedSscModel,
+)
 
 MODELS = {
     "BasicModel": BasicModel,
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
+    "PretrainedSscModel": PretrainedSscModel,
 }
 
-DATASETS = {"GoodreadsSingleSentenceDataset": GoodreadsSingleSentenceDataset}
+DATASETS = {
+    "GoodreadsMultiSentenceDataset": GoodreadsMultiSentenceDataset,
+    "GoodreadsSingleSentenceDataset": GoodreadsSingleSentenceDataset,
+    "GoodreadsSscDataset": GoodreadsSscDataset,
+}
 
 
 def main(args):
     dataset = DATASETS[args.dataset_name](hparams=args)
     model = MODELS[args.model_name](dataset=dataset, hparams=args)
+    args.dry_run = True
 
     wandb_logger = ResumableWandbLogger(id=args.run_id, offline=args.dry_run)
     wandb_logger.log_hyperparams(args)
@@ -25,11 +39,11 @@ def main(args):
         "logger": wandb_logger,
         "default_save_path": wandb_logger.get_checkpoints_root(),
         "resume_from_checkpoint": wandb_logger.get_last_checkpoint(),
-        "progress_bar_refresh_rate": 100,
-        "train_percent_check": 0.02,
-        "val_percent_check": 0.02,
-        "test_percent_check": 0.02,
-        "max_epochs": 3,
+        # "progress_bar_refresh_rate": 100,
+        # "train_percent_check": 0.02,
+        # "val_percent_check": 0.02,
+        # "test_percent_check": 0.02,
+        # "max_epochs": 3,
     }
 
     if args.dry_run:
@@ -37,10 +51,10 @@ def main(args):
 
     if args.tpu:
         params["num_tpu_cores"] = 8
+        params["precision"] = 16
 
     trainer = Trainer(**params)
     trainer.fit(model)
-    trainer.test()
 
 
 if __name__ == "__main__":
@@ -48,12 +62,15 @@ if __name__ == "__main__":
 
     # Choose model and dataset
     parser.add_argument(
-        "--model_name", type=str, default="BasicModel", help=str(DATASETS.keys())
+        "--model_name",
+        type=str,
+        default="PretrainedSscModel",
+        help=str(DATASETS.keys()),
     )
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default="GoodreadsSingleSentenceDataset",
+        default="GoodreadsSscDataset",
         help=str(MODELS.keys()),
     )
     parser.add_argument(

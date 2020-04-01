@@ -8,11 +8,16 @@ from spoiler_detection.datasets import (
     GoodreadsSscDataset,
 )
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import BasicModel, PretrainedSingleSentenceModel
+from spoiler_detection.models import (
+    BasicModel,
+    PretrainedSingleSentenceModel,
+    PretrainedSscModel,
+)
 
 MODELS = {
     "BasicModel": BasicModel,
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
+    "PretrainedSscModel": PretrainedSscModel,
 }
 
 DATASETS = {
