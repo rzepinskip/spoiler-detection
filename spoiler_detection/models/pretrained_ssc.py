@@ -19,7 +19,6 @@ class PretrainedSscModel(BaseModel):
         self.tokenizer = AutoTokenizer.from_pretrained(hparams.model_type)
         self._sep_token_id = self.tokenizer._convert_token_to_id("[SEP]")
 
-        hparams.use_genres = True
         self._use_genres = hparams.use_genres
         if hparams.use_genres:
             classifier_input_dim = self.model.config.hidden_size + 10
