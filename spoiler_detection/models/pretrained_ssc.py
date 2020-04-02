@@ -88,6 +88,7 @@ class PretrainedSscModel(BaseModel):
         probs = F.softmax(logits, dim=-1)
 
         metrics = get_training_metrics(probs, flattened_labels)
+        metrics["lr"] = self.trainer.optimizers[0].param_groups[0]["lr"]
         return {"loss": loss, "log": metrics, "progress_bar": metrics}
 
     def validation_step(self, batch, batch_idx):
