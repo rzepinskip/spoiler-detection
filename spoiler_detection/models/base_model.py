@@ -24,25 +24,35 @@ class BaseModel(pl.LightningModule):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
-    def prepare_data(self):
-        self.train_dl = self.dataset.get_dataloader(
-            "train", self.tokenizer, self.hparams.train_batch_size
-        )
-        self.val_dl = self.dataset.get_dataloader(
-            "val", self.tokenizer, self.hparams.eval_batch_size
-        )
-        self.test_dl = self.dataset.get_dataloader(
-            "test", self.tokenizer, self.hparams.eval_batch_size
-        )
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+        probs = torch.cat([x["probs"] for x in outputs])
+        label = torch.cat([x["label"] for x in outputs])
 
-    def train_dataloader(self):
-        return self.train_dl
+        if self.global_step == 0:
+            return {"val_loss": avg_loss}
 
-    def val_dataloader(self):
-        return self.val_dl
+        metrics = get_validation_metrics(probs, label)
+        metrics["epoch"] = self.current_epoch
 
-    def test_dataloader(self):
-        return self.test_dl
+        return {
+            "val_loss": avg_loss,
+            "log": metrics,
+            "progress_bar": metrics,
+        }
+
+    def test_epoch_end(self, outputs):
+        avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
+        probs = torch.cat([x["probs"] for x in outputs])
+        label = torch.cat([x["label"] for x in outputs])
+
+        metrics = get_test_metrics(probs, label)
+
+        return {
+            "test_loss": avg_loss,
+            "log": metrics,
+            "progress_bar": metrics,
+        }
 
     def configure_optimizers(self):
         "Prepare optimizer and schedule (linear warmup and decay)"
@@ -72,38 +82,47 @@ class BaseModel(pl.LightningModule):
             lr=self.hparams.learning_rate,
             eps=self.hparams.adam_epsilon,
         )
-        self.opt = optimizer
-        return [optimizer]
 
-    def validation_epoch_end(self, outputs):
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        probs = torch.cat([x["probs"] for x in outputs])
-        label = torch.cat([x["label"] for x in outputs])
+        n_devices = 1
+        if self.trainer.use_tpu:
+            n_devices = self.trainer.num_tpu_cores
+        elif self.trainer.gpus:
+            n_devices = max(1, self.trainer.gpus)
+        t_total = (
+            len(self.train_dl)
+            * self.trainer.train_percent_check
+            // n_devices
+            // self.hparams.accumulate_grad_batches
+            * float(self.hparams.epochs)
+        )
 
-        if self.global_step == 0:
-            return {"val_loss": avg_loss}
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=self.hparams.warmup_steps,
+            num_training_steps=t_total,
+        )
 
-        metrics = get_validation_metrics(probs, label)
-        metrics["epoch"] = self.current_epoch
+        return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
-        return {
-            "avg_val_loss": avg_loss,
-            "log": metrics,
-            "progress_bar": metrics,
-        }
+    def prepare_data(self):
+        self.train_dl = self.dataset.get_dataloader(
+            "train", self.tokenizer, self.hparams.train_batch_size
+        )
+        self.val_dl = self.dataset.get_dataloader(
+            "val", self.tokenizer, self.hparams.eval_batch_size
+        )
+        self.test_dl = self.dataset.get_dataloader(
+            "test", self.tokenizer, self.hparams.eval_batch_size
+        )
 
-    def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
-        probs = torch.cat([x["probs"] for x in outputs])
-        label = torch.cat([x["label"] for x in outputs])
+    def train_dataloader(self):
+        return self.train_dl
 
-        metrics = get_test_metrics(probs, label)
+    def val_dataloader(self):
+        return self.val_dl
 
-        return {
-            "avg_test_loss": avg_loss,
-            "log": metrics,
-            "progress_bar": metrics,
-        }
+    def test_dataloader(self):
+        return self.test_dl
 
     @classmethod
     def add_model_specific_args(cls, parent_parser):
@@ -138,6 +157,12 @@ class BaseModel(pl.LightningModule):
             default=4,
             type=int,
             help="Total number of training epochs to perform.",
+        )
+        parser.add_argument(
+            "--accumulate_grad_batches",
+            default=1,
+            type=int,
+            help="Accumulates grads every k batches.",
         )
 
         parser.add_argument("--train_batch_size", default=32, type=int)
