@@ -65,26 +65,26 @@ class PretrainedSingleSentenceModel(BaseModel):
         return logits
 
     def training_step(self, batch, batch_idx):
-        input_ids, attention_mask, token_type_ids, genres, label = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        input_ids, attention_mask, token_type_ids, genres, labels = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
         probs = F.softmax(logits, dim=-1)
 
-        metrics = get_training_metrics(probs, label)
+        metrics = get_training_metrics(probs, labels)
         return {"loss": loss, "log": metrics, "progress_bar": metrics}
 
     def validation_step(self, batch, batch_idx):
-        input_ids, attention_mask, token_type_ids, genres, label = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        input_ids, attention_mask, token_type_ids, genres, labels = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
         probs = F.softmax(logits, dim=-1)
 
-        return {"val_loss": loss, "probs": probs, "label": label}
+        return {"val_loss": loss, "probs": probs, "labels": labels}
 
     def test_step(self, batch, batch_idx):
-        input_ids, attention_mask, token_type_ids, genres, label = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        input_ids, attention_mask, token_type_ids, genres, labels = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
         probs = F.softmax(logits, dim=-1)
 
-        return {"test_loss": loss, "probs": probs, "label": label}
+        return {"test_loss": loss, "probs": probs, "labels": labels}
 
     @classmethod
     def add_model_specific_args(cls, parent_parser):
@@ -92,5 +92,5 @@ class PretrainedSingleSentenceModel(BaseModel):
         parser.add_argument("--model_type", type=str, default="albert-base-v2")
         parser.add_argument("--use_genres", action="store_true")
         parser.add_argument("--classifier_dropout_prob", type=float, default=0.1)
-        parser.add_argument("--positive_class_weight", type=float, default=0.8)
+        parser.add_argument("--positive_class_weight", type=float, default=0.5)
         return parser

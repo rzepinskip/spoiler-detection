@@ -27,7 +27,7 @@ class BaseModel(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
         probs = torch.cat([x["probs"] for x in outputs])
-        label = torch.cat([x["label"] for x in outputs])
+        label = torch.cat([x["labels"] for x in outputs])
 
         if self.global_step == 0:
             return {"val_loss": avg_loss}
@@ -44,7 +44,7 @@ class BaseModel(pl.LightningModule):
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
         probs = torch.cat([x["probs"] for x in outputs])
-        label = torch.cat([x["label"] for x in outputs])
+        label = torch.cat([x["labels"] for x in outputs])
 
         metrics = get_test_metrics(probs, label)
 
