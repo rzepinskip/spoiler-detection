@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from transformers import AdamW
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 from spoiler_detection.metrics import get_test_metrics, get_validation_metrics
 
@@ -75,11 +75,35 @@ class BaseModel(pl.LightningModule):
         self.opt = optimizer
         return [optimizer]
 
-    def test_step(self, batch, batch_nb):
-        return self.validation_step(batch, batch_nb)
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+        probs = torch.cat([x["probs"] for x in outputs])
+        label = torch.cat([x["label"] for x in outputs])
+
+        if self.global_step == 0:
+            return {"val_loss": avg_loss}
+
+        metrics = get_validation_metrics(probs, label)
+        metrics["epoch"] = self.current_epoch
+
+        return {
+            "avg_val_loss": avg_loss,
+            "log": metrics,
+            "progress_bar": metrics,
+        }
 
     def test_epoch_end(self, outputs):
-        return self.validation_end(outputs)
+        avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
+        probs = torch.cat([x["probs"] for x in outputs])
+        label = torch.cat([x["label"] for x in outputs])
+
+        metrics = get_test_metrics(probs, label)
+
+        return {
+            "avg_test_loss": avg_loss,
+            "log": metrics,
+            "progress_bar": metrics,
+        }
 
     @classmethod
     def add_model_specific_args(cls, parent_parser):

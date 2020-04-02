@@ -58,75 +58,33 @@ class PretrainedSingleSentenceModel(BaseModel):
 
         logits = self.classifier(pooled_output)
 
-        outputs = (logits,) + outputs[
-            2:
-        ]  # add hidden states and attention if they are here
-
         if labels is not None:
             loss = self.loss(logits.view(-1, self.num_labels), labels.view(-1))
-            outputs = (loss,) + outputs
+            return logits, loss
 
-        return outputs  # (loss), logits, (hidden_states), (attentions)
+        return logits
 
     def training_step(self, batch, batch_idx):
-        inputs = {
-            "input_ids": batch[0],
-            "attention_mask": batch[1],
-            "token_type_ids": batch[2],
-            "genres": batch[3],
-            "labels": batch[4],
-        }
+        input_ids, attention_mask, token_type_ids, genres, label = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        probs = F.softmax(logits, dim=-1)
 
-        outputs = self(**inputs)
-        loss = outputs[0]
-
-        tensorboard_logs = {"loss": loss}
-        return {"loss": loss, "log": tensorboard_logs}
+        metrics = get_training_metrics(probs, label)
+        return {"loss": loss, "log": metrics, "progress_bar": metrics}
 
     def validation_step(self, batch, batch_idx):
-        inputs = {
-            "input_ids": batch[0],
-            "attention_mask": batch[1],
-            "token_type_ids": batch[2],
-            "genres": batch[3],
-            "labels": batch[4],
-        }
+        input_ids, attention_mask, token_type_ids, genres, label = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        probs = F.softmax(logits, dim=-1)
 
-        outputs = self(**inputs)
-        tmp_eval_loss, logits = outputs[:2]
-        preds = logits.detach().cpu().numpy()
-        out_label_ids = inputs["labels"].detach().cpu().numpy()
+        return {"val_loss": loss, "probs": probs, "label": label}
 
-        return {
-            "val_loss": tmp_eval_loss.detach().cpu(),
-            "pred": preds,
-            "target": out_label_ids,
-        }
+    def test_step(self, batch, batch_idx):
+        input_ids, attention_mask, token_type_ids, genres, label = batch
+        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, label)
+        probs = F.softmax(logits, dim=-1)
 
-    def validation_epoch_end(self, outputs):
-        ret, preds, targets = self._eval_end(outputs)
-        logs = ret["log"]
-        return {"val_loss": logs["val_loss"], "log": logs, "progress_bar": logs}
-
-    def _eval_end(self, outputs):
-        val_loss_mean = (
-            torch.stack([x["val_loss"] for x in outputs]).mean().detach().cpu().item()
-        )
-        preds = np.concatenate([x["pred"] for x in outputs], axis=0)
-        preds = np.argmax(preds, axis=1)
-
-        out_label_ids = np.concatenate([x["target"] for x in outputs], axis=0)
-        out_label_list = [[] for _ in range(out_label_ids.shape[0])]
-        preds_list = [[] for _ in range(out_label_ids.shape[0])]
-
-        results = {
-            **{"val_loss": val_loss_mean},
-            "acc": (preds == out_label_ids).mean(),
-        }
-
-        ret = {k: v for k, v in results.items()}
-        ret["log"] = results
-        return ret, preds_list, out_label_list
+        return {"test_loss": loss, "probs": probs, "label": label}
 
     @classmethod
     def add_model_specific_args(cls, parent_parser):
