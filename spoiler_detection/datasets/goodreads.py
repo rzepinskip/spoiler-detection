@@ -3,11 +3,11 @@ import itertools
 import json
 
 from torch import tensor
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from transformers import cached_path
 
 from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
+from spoiler_detection.datasets.utils import pad_sequence
 from spoiler_detection.feature_encoders import encode_genre
 
 DATASET_MAP = {
@@ -70,27 +70,15 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
             ]
 
             return (
+                pad_sequence([tensor(es["input_ids"]) for es in encoded_sentences]),
                 pad_sequence(
-                    [tensor(es["input_ids"]) for es in encoded_sentences],
-                    padding_value=-1,
-                    batch_first=True,
+                    [tensor(es["attention_mask"]) for es in encoded_sentences]
                 ),
                 pad_sequence(
-                    [tensor(es["attention_mask"]) for es in encoded_sentences],
-                    padding_value=-1,
-                    batch_first=True,
-                ),
-                pad_sequence(
-                    [tensor(es["token_type_ids"]) for es in encoded_sentences],
-                    padding_value=-1,
-                    batch_first=True,
+                    [tensor(es["token_type_ids"]) for es in encoded_sentences]
                 ),
                 tensor(genres),
-                pad_sequence(
-                    [tensor(x["labels"]) for x in samples],
-                    padding_value=-1,
-                    batch_first=True,
-                ),
+                pad_sequence([tensor(x["labels"]) for x in samples]),
             )
 
         data = []
@@ -120,8 +108,6 @@ class GoodreadsSscDataset(BaseDataset):
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             sentences = ["[SEP]".join(x["sentences"]) for x in samples]
-            labels = [x["labels"] for x in samples]
-            genres = [encode_genre(x["genre"]) for x in samples]
 
             output = tokenizer.batch_encode_plus(
                 sentences, max_length=self._max_length, pad_to_max_length=True
@@ -130,11 +116,16 @@ class GoodreadsSscDataset(BaseDataset):
                 tensor(output["input_ids"]),
                 tensor(output["attention_mask"]),
                 tensor(output["token_type_ids"]),
-                tensor(genres),
+                pad_sequence(
+                    [
+                        tensor([x["genre"] for _ in range(len(x["sentences"]))])
+                        for x in samples
+                    ],
+                    max_length=self._max_sent_per_example,
+                ),
                 pad_sequence(
                     [tensor(x["labels"]) for x in samples],
-                    padding_value=-1,
-                    batch_first=True,
+                    max_length=self._max_sent_per_example,
                 ),
             )
 
@@ -155,7 +146,7 @@ class GoodreadsSscDataset(BaseDataset):
                         {
                             "labels": labels_loop,
                             "sentences": sentences_loop,
-                            "genre": genres,
+                            "genre": encode_genre(genres),
                         }
                     )
 
