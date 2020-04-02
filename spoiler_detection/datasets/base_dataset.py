@@ -18,7 +18,7 @@ class ListDataset(Dataset):
 
 class BaseDataset:
     @abstractmethod
-    def get_dataloader(self, dataset_type, tokenizer):
+    def get_dataloader(self, dataset_type, tokenizer, batch_size):
         pass
 
     @classmethod

@@ -23,7 +23,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
         super().__init__()
         self._max_length = hparams.max_length
 
-    def get_dataloader(self, dataset_type, tokenizer):
+    def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             sentences = [x["sentence"] for x in samples]
             labels = [x["label"] for x in samples]
@@ -50,7 +50,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=32,
+            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
         )
 
 
@@ -59,7 +59,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
         super().__init__()
         self._max_length = hparams.max_length
 
-    def get_dataloader(self, dataset_type, tokenizer):
+    def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             genres = [encode_genre(x["genre"]) for x in samples]
             encoded_sentences = [
@@ -107,7 +107,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=32,
+            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
         )
 
 
@@ -117,7 +117,7 @@ class GoodreadsSscDataset(BaseDataset):
         self._max_length = hparams.max_length
         self._max_sent_per_example = 3
 
-    def get_dataloader(self, dataset_type, tokenizer):
+    def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             sentences = ["[SEP]".join(x["sentences"]) for x in samples]
             labels = [x["labels"] for x in samples]
@@ -161,7 +161,7 @@ class GoodreadsSscDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=32,
+            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
         )
 
     def enforce__max_sent_per_example(self, sentences, labels=None):

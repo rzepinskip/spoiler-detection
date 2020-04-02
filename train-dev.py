@@ -8,14 +8,9 @@ from spoiler_detection.datasets import (
     GoodreadsSscDataset,
 )
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import (
-    BasicModel,
-    PretrainedSingleSentenceModel,
-    PretrainedSscModel,
-)
+from spoiler_detection.models import PretrainedSingleSentenceModel, PretrainedSscModel
 
 MODELS = {
-    "BasicModel": BasicModel,
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
     "PretrainedSscModel": PretrainedSscModel,
 }
@@ -31,6 +26,7 @@ def main(args):
     dataset = DATASETS[args.dataset_name](hparams=args)
     model = MODELS[args.model_name](dataset=dataset, hparams=args)
     args.dry_run = True
+    args.train_batch_size = args.eval_batch_size = 2
 
     wandb_logger = ResumableWandbLogger(id=args.run_id, offline=args.dry_run)
     wandb_logger.log_hyperparams(args)
@@ -64,13 +60,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name",
         type=str,
-        default="PretrainedSscModel",
+        default="PretrainedSingleSentenceModel",
         help=str(DATASETS.keys()),
     )
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default="GoodreadsSscDataset",
+        default="GoodreadsSingleSentenceDataset",
         help=str(MODELS.keys()),
     )
     parser.add_argument(
