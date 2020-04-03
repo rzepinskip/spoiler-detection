@@ -34,6 +34,7 @@ class BaseModel(pl.LightningModule):
 
         metrics = get_validation_metrics(probs, label)
         metrics["epoch"] = self.current_epoch
+        metrics["avg_val_loss"] = avg_loss
 
         return {
             "val_loss": avg_loss,
