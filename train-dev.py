@@ -8,10 +8,15 @@ from spoiler_detection.datasets import (
     GoodreadsSscDataset,
 )
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import PretrainedSingleSentenceModel, PretrainedSscModel
+from spoiler_detection.models import (
+    PretrainedMultiSentenceModel,
+    PretrainedSingleSentenceModel,
+    PretrainedSscModel,
+)
 
 MODELS = {
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
+    "PretrainedMultiSentenceModel": PretrainedMultiSentenceModel,
     "PretrainedSscModel": PretrainedSscModel,
 }
 
@@ -43,7 +48,10 @@ def main(args):
     }
 
     if args.dry_run:
-        params["fast_dev_run"] = True
+        # params["fast_dev_run"] = True
+        params["val_percent_check"] = 0.00005
+        params["train_percent_check"] = 0.00005
+        params["max_epochs"] = 3
 
     if args.tpu:
         params["num_tpu_cores"] = 8

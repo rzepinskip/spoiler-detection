@@ -70,12 +70,17 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
             ]
 
             return (
-                pad_sequence([tensor(es["input_ids"]) for es in encoded_sentences]),
                 pad_sequence(
-                    [tensor(es["attention_mask"]) for es in encoded_sentences]
+                    [tensor(es["input_ids"]) for es in encoded_sentences],
+                    padding_value=0,
                 ),
                 pad_sequence(
-                    [tensor(es["token_type_ids"]) for es in encoded_sentences]
+                    [tensor(es["attention_mask"]) for es in encoded_sentences],
+                    padding_value=False,
+                ),
+                pad_sequence(
+                    [tensor(es["token_type_ids"]) for es in encoded_sentences],
+                    padding_value=0,
                 ),
                 tensor(genres),
                 pad_sequence([tensor(x["labels"]) for x in samples]),
