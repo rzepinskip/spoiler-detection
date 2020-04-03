@@ -2,12 +2,14 @@ from argparse import ArgumentParser
 
 from pytorch_lightning import Trainer
 
-from spoiler_detection.datasets import (GoodreadsMultiSentenceDataset,
-                                        GoodreadsSingleSentenceDataset,
-                                        GoodreadsSscDataset)
+from spoiler_detection.datasets import (
+    GoodreadsMultiSentenceDataset,
+    GoodreadsSingleSentenceDataset,
+    GoodreadsSscDataset,
+    TvTropesMovieSingleSentenceDataset,
+)
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import (PretrainedSingleSentenceModel,
-                                      PretrainedSscModel)
+from spoiler_detection.models import PretrainedSingleSentenceModel, PretrainedSscModel
 
 MODELS = {
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
@@ -18,6 +20,7 @@ DATASETS = {
     "GoodreadsMultiSentenceDataset": GoodreadsMultiSentenceDataset,
     "GoodreadsSingleSentenceDataset": GoodreadsSingleSentenceDataset,
     "GoodreadsSscDataset": GoodreadsSscDataset,
+    "TvTropesMovieSingleSentenceDataset": TvTropesMovieSingleSentenceDataset,
 }
 
 
@@ -50,12 +53,15 @@ if __name__ == "__main__":
 
     # Choose model and dataset
     parser.add_argument(
-        "--model_name", type=str, default="BasicModel", help=str(DATASETS.keys())
+        "--model_name",
+        type=str,
+        default="PretrainedSingleSentenceModel",
+        help=str(DATASETS.keys()),
     )
     parser.add_argument(
         "--dataset_name",
         type=str,
-        default="GoodreadsSingleSentenceDataset",
+        default="TvTropesMovieSingleSentenceDataset",
         help=str(MODELS.keys()),
     )
     parser.add_argument(
