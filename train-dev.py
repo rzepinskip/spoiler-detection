@@ -37,11 +37,10 @@ def main(args):
         "logger": wandb_logger,
         "default_save_path": wandb_logger.get_checkpoints_root(),
         "resume_from_checkpoint": wandb_logger.get_last_checkpoint(),
-        # "progress_bar_refresh_rate": 100,
-        # "train_percent_check": 0.02,
-        # "val_percent_check": 0.02,
-        # "test_percent_check": 0.02,
-        # "max_epochs": 3,
+        "max_epochs": args.epochs,
+        # "progress_bar_refresh_rate": 200,
+        # "train_percent_check": 0.01,
+        # "val_percent_check": 0.01,
     }
 
     if args.dry_run:
@@ -49,7 +48,6 @@ def main(args):
 
     if args.tpu:
         params["num_tpu_cores"] = 8
-        params["precision"] = 16
 
     trainer = Trainer(**params)
     trainer.fit(model)
@@ -60,7 +58,10 @@ if __name__ == "__main__":
 
     # Choose model and dataset
     parser.add_argument(
-        "--model_name", type=str, default="BasicModel", help=str(DATASETS.keys()),
+        "--model_name",
+        type=str,
+        default="PretrainedSingleSentenceModel",
+        help=str(DATASETS.keys()),
     )
     parser.add_argument(
         "--dataset_name",

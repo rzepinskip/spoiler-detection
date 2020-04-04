@@ -35,6 +35,7 @@ def main(args):
         "logger": wandb_logger,
         "default_save_path": wandb_logger.get_checkpoints_root(),
         "resume_from_checkpoint": wandb_logger.get_last_checkpoint(),
+        "max_epochs": args.epochs,
     }
 
     if args.dry_run:
@@ -42,7 +43,8 @@ def main(args):
 
     if args.tpu:
         params["num_tpu_cores"] = 8
-        params["precision"] = 16
+    else:
+        params["gpus"] = 1
 
     trainer = Trainer(**params)
     trainer.fit(model)

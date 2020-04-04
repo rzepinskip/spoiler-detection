@@ -59,7 +59,7 @@ class PretrainedSingleSentenceModel(BaseModel):
         logits = self.classifier(pooled_output)
 
         if labels is not None:
-            loss = self.loss(logits.view(-1, self.num_labels), labels.view(-1))
+            loss = self.loss(logits, labels)
             return logits, loss
 
         return logits

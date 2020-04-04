@@ -98,9 +98,7 @@ class BaseModel(pl.LightningModule):
         )
 
         scheduler = get_linear_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=self.hparams.warmup_steps,
-            num_training_steps=t_total,
+            optimizer, num_warmup_steps=0.1 * t_total, num_training_steps=t_total,
         )
 
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
@@ -146,12 +144,6 @@ class BaseModel(pl.LightningModule):
             default=1e-8,
             type=float,
             help="Epsilon for Adam optimizer.",
-        )
-        parser.add_argument(
-            "--warmup_steps",
-            default=0,
-            type=int,
-            help="Linear warmup over warmup_steps.",
         )
         parser.add_argument(
             "--epochs",
