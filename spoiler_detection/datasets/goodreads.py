@@ -50,7 +50,11 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
+            dataset,
+            num_workers=2,
+            collate_fn=prepare_sample,
+            batch_size=batch_size,
+            shuffle=True,
         )
 
 
@@ -95,7 +99,11 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
+            dataset,
+            num_workers=2,
+            collate_fn=prepare_sample,
+            batch_size=batch_size,
+            shuffle=True,
         )
 
 
@@ -152,7 +160,11 @@ class GoodreadsSscDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
+            dataset,
+            num_workers=2,
+            collate_fn=prepare_sample,
+            batch_size=batch_size,
+            shuffle=True,
         )
 
     def enforce__max_sent_per_example(self, sentences, labels=None):

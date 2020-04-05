@@ -49,5 +49,9 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
 
         dataset = ListDataset(data)
         return DataLoader(
-            dataset, num_workers=2, collate_fn=prepare_sample, batch_size=batch_size,
+            dataset,
+            num_workers=2,
+            collate_fn=prepare_sample,
+            batch_size=batch_size,
+            shuffle=True,
         )
