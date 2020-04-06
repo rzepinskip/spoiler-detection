@@ -1,3 +1,4 @@
+import logging
 from argparse import ArgumentParser
 
 import pytorch_lightning as pl
@@ -58,23 +59,15 @@ class PretrainedSscModel(BaseModel):
         num_sentences = sep_embeddings.shape[0]
 
         if self._use_genres:
-            flattened_genres = (genres[genres != -1])[: num_sentences * 10].reshape(
-                num_sentences, 10
-            )
+            flattened_genres = (genres[genres != -1]).reshape(num_sentences, 10)
             sep_embeddings = torch.cat((sep_embeddings, flattened_genres), dim=-1)
 
         logits = self.classifier(sep_embeddings)
 
         if labels is not None:
             flattened_labels = labels[labels != -1]
-            num_labels = flattened_labels.shape[0]
 
-            if num_sentences < num_labels:
-                print(f"Found {num_labels} labels but {num_sentences} sentences")
-                flattened_labels = flattened_labels[:num_sentences]
-            loss = self.loss(
-                logits.view(-1, self.num_labels), flattened_labels.view(-1)
-            )
+            loss = self.loss(logits, flattened_labels)
             return logits, loss, flattened_labels
 
         return logits

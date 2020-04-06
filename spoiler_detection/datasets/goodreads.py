@@ -1,6 +1,7 @@
 import gzip
 import itertools
 import json
+import logging
 
 from torch import tensor
 from torch.utils.data import DataLoader
@@ -125,8 +126,24 @@ class GoodreadsSscDataset(BaseDataset):
             output = tokenizer.batch_encode_plus(
                 sentences, max_length=self._max_length, pad_to_max_length=True
             )
+            input_ids = tensor(output["input_ids"])
+            num_sentences = sum(
+                sum(input_ids == tokenizer._convert_token_to_id("[SEP]"))
+            )
+            num_labels = sum([len(x["labels"]) for x in samples])
+
+            if num_sentences != num_labels:
+                for i in range(len(samples)):
+                    s = len([x for x in output["input_ids"][i] if x == 3])
+                    l = len(samples[i]["labels"])
+                    if s != l:
+                        logging.debug(
+                            f"\t Sentence #{i} is too long. Truncating. Original:\n {sentences[i]}"
+                        )
+                        samples[i]["labels"] = samples[i]["labels"][:s]
+
             return (
-                tensor(output["input_ids"]),
+                input_ids,
                 tensor(output["attention_mask"]),
                 tensor(output["token_type_ids"]),
                 pad_sequence(
@@ -166,7 +183,7 @@ class GoodreadsSscDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=2,
+            num_workers=0,
             collate_fn=prepare_sample,
             batch_size=batch_size,
             shuffle=True,
