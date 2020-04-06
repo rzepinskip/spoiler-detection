@@ -9,10 +9,15 @@ from spoiler_detection.datasets import (
     TvTropesMovieSingleSentenceDataset,
 )
 from spoiler_detection.loggers import ResumableWandbLogger
-from spoiler_detection.models import PretrainedSingleSentenceModel, PretrainedSscModel
+from spoiler_detection.models import (
+    PretrainedMultiSentenceModel,
+    PretrainedSingleSentenceModel,
+    PretrainedSscModel,
+)
 
 MODELS = {
     "PretrainedSingleSentenceModel": PretrainedSingleSentenceModel,
+    "PretrainedMultiSentenceModel": PretrainedMultiSentenceModel,
     "PretrainedSscModel": PretrainedSscModel,
 }
 
