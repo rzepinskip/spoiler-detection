@@ -1,2 +1,3 @@
-from spoiler_detection.models.single_sentence_classifier import SingleSentenceClassifier
-from spoiler_detection.models.multiple_sentences_classifier import MultipleSentencesClassifier
+from spoiler_detection.models.pretrained_multi import *
+from spoiler_detection.models.pretrained_single import *
+from spoiler_detection.models.pretrained_ssc import *
