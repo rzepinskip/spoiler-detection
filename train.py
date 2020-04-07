@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from multiprocessing import freeze_support
 
 from pytorch_lightning import Trainer
 
@@ -61,6 +62,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    freeze_support()
     parser = ArgumentParser(add_help=False)
 
     parser.add_argument(
