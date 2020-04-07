@@ -61,9 +61,9 @@ class PretrainedSingleSentenceModel(BaseModel):
 
         if labels is not None:
             loss = self.loss(logits, labels)
-            return logits, loss
+            return probs, loss
 
-        return logits
+        return probs
 
     def training_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
