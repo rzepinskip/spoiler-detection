@@ -22,7 +22,7 @@ setup(
     description="Spoiler detection models",
     long_description=read("README.md"),
     packages=find_packages(exclude=("tests",)),
-    install_requires=[],
+    install_requires=["transformers", "wandb", "pytorch-crf", "pytorch-lightning"],
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "License :: OSI Approved :: MIT License",
