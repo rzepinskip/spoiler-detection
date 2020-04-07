@@ -2,6 +2,7 @@ import csv
 import gzip
 import itertools
 import json
+from functools import partial
 
 from torch import tensor
 from torch.utils.data import DataLoader
@@ -23,22 +24,22 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
         super().__init__()
         self._max_length = hparams.max_length
 
+    def prepare_sample(self, tokenizer, samples):
+        sentences = [x["sentence"] for x in samples]
+        labels = [x["label"] for x in samples]
+
+        output = tokenizer.batch_encode_plus(
+            sentences, max_length=self._max_length, pad_to_max_length=True
+        )
+        return (
+            tensor(output["input_ids"]),
+            tensor(output["attention_mask"]),
+            tensor(output["token_type_ids"]),
+            tensor([]),
+            tensor(labels),
+        )
+
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
-        def prepare_sample(samples):
-            sentences = [x["sentence"] for x in samples]
-            labels = [x["label"] for x in samples]
-
-            output = tokenizer.batch_encode_plus(
-                sentences, max_length=self._max_length, pad_to_max_length=True
-            )
-            return (
-                tensor(output["input_ids"]),
-                tensor(output["attention_mask"]),
-                tensor(output["token_type_ids"]),
-                tensor([]),
-                tensor(labels),
-            )
-
         data = []
         with open(cached_path(DATASET_MAP[dataset_type])) as file:
             reader = csv.reader(file)
@@ -51,7 +52,7 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
         return DataLoader(
             dataset,
             num_workers=2,
-            collate_fn=prepare_sample,
+            collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
             shuffle=True,
         )
