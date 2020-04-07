@@ -36,7 +36,9 @@ def main(args):
 
     model = MODELS[args.model_name](hparams=args)
 
-    wandb_logger = ResumableWandbLogger(id=args.run_id, offline=args.dry_run)
+    wandb_logger = ResumableWandbLogger(
+        id=args.run_id, offline=args.dry_run or args.offline
+    )
     wandb_logger.log_hyperparams(args)
 
     params = {
@@ -81,6 +83,7 @@ if __name__ == "__main__":
         "--run_id", type=str, help="Id of Wandb session to resume",
     )
     parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--offline", action="store_true")
     parser.add_argument("--tpu", action="store_true")
     parser.add_argument("--gpus", type=int, default=None)
     parser.add_argument("--dataset_percent", type=float, default=1.0)
