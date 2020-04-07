@@ -2,14 +2,12 @@ import torch
 from sklearn import metrics
 
 
-def get_training_metrics(probs, truth):
+def get_accuracy(probs, truth):
     probs, truth = probs.cpu().detach(), truth.cpu().detach()
     predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(truth, predicted)
 
-    return {
-        f"train_acc": torch.tensor(acc),
-    }
+    return torch.tensor(acc)
 
 
 def get_metrics(probs, truth, prefix):

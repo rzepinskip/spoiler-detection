@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torchcrf import CRF
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from spoiler_detection.metrics import get_training_metrics, get_validation_metrics
+from spoiler_detection.metrics import get_accuracy
 from spoiler_detection.models.base_model import BaseModel
 
 
@@ -69,29 +69,39 @@ class PretrainedMultiSentenceModel(BaseModel):
                 ]
             )
             loss = -log_likelihood
-            return probs, loss
+            return probs, loss, labels[labels != -1]
 
         return probs
 
     def training_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
+        probs, loss, flattened_labels = self(
+            input_ids, attention_mask, token_type_ids, genres, labels
+        )
 
-        metrics = get_training_metrics(probs, labels[labels != -1])
-        metrics["lr"] = self.trainer.optimizers[0].param_groups[0]["lr"]
-        return {"loss": loss, "log": metrics, "progress_bar": metrics}
+        acc = get_accuracy(probs, flattened_labels)
+        metrics = {
+            "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+            "train_acc": acc,
+        }
+
+        return {"loss": loss, "log": metrics, "train_acc": acc}
 
     def validation_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
+        probs, loss, flattened_labels = self(
+            input_ids, attention_mask, token_type_ids, genres, labels
+        )
 
-        return {"val_loss": loss, "probs": probs, "labels": labels[labels != -1]}
+        return {"val_loss": loss, "probs": probs, "labels": flattened_labels}
 
     def test_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
+        probs, loss, flattened_labels = self(
+            input_ids, attention_mask, token_type_ids, genres, labels
+        )
 
-        return {"test_loss": loss, "probs": probs, "labels": labels[labels != -1]}
+        return {"test_loss": loss, "probs": probs, "labels": flattened_labels}
 
     @classmethod
     def add_model_specific_args(cls, parent_parser):

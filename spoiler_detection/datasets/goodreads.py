@@ -183,7 +183,7 @@ class GoodreadsSscDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=0,
+            num_workers=2,
             collate_fn=prepare_sample,
             batch_size=batch_size,
             shuffle=True,

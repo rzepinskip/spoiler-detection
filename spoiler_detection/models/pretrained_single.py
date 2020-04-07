@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from spoiler_detection.metrics import get_training_metrics, get_validation_metrics
+from spoiler_detection.metrics import get_accuracy
 from spoiler_detection.models.base_model import BaseModel
 
 
@@ -57,6 +57,7 @@ class PretrainedSingleSentenceModel(BaseModel):
             pooled_output = torch.cat((pooled_output, genres), dim=-1)
 
         logits = self.classifier(pooled_output)
+        probs = F.softmax(logits, dim=-1)
 
         if labels is not None:
             loss = self.loss(logits, labels)
@@ -66,24 +67,25 @@ class PretrainedSingleSentenceModel(BaseModel):
 
     def training_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
-        probs = F.softmax(logits, dim=-1)
+        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
 
-        metrics = get_training_metrics(probs, labels)
-        metrics["lr"] = self.trainer.optimizers[0].param_groups[0]["lr"]
-        return {"loss": loss, "log": metrics, "progress_bar": metrics}
+        acc = get_accuracy(probs, labels)
+        metrics = {
+            "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+            "train_acc": acc,
+        }
+
+        return {"loss": loss, "log": metrics, "train_acc": acc}
 
     def validation_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
-        probs = F.softmax(logits, dim=-1)
+        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
 
         return {"val_loss": loss, "probs": probs, "labels": labels}
 
     def test_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
-        probs = F.softmax(logits, dim=-1)
+        probs, loss = self(input_ids, attention_mask, token_type_ids, genres, labels)
 
         return {"test_loss": loss, "probs": probs, "labels": labels}
 

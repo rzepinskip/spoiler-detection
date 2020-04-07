@@ -24,6 +24,17 @@ class BaseModel(pl.LightningModule):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
+    def training_epoch_end(self, outputs):
+        avg_loss = torch.stack([x["loss"] for x in outputs]).mean()
+        avg_acc = torch.stack([x["train_acc"] for x in outputs]).mean()
+
+        metrics = {
+            "epoch": self.current_epoch,
+            "avg_train_loss": avg_loss,
+            "avg_train_acc": avg_acc,
+        }
+        return {"log": metrics}
+
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
         probs = torch.cat([x["probs"] for x in outputs])
@@ -56,8 +67,6 @@ class BaseModel(pl.LightningModule):
         }
 
     def configure_optimizers(self):
-        "Prepare optimizer and schedule (linear warmup and decay)"
-
         model = self.model
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [

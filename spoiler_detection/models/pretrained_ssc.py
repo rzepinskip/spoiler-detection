@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from spoiler_detection.metrics import get_training_metrics, get_validation_metrics
+from spoiler_detection.metrics import get_accuracy
 from spoiler_detection.models.base_model import BaseModel
 
 
@@ -63,41 +63,43 @@ class PretrainedSscModel(BaseModel):
             sep_embeddings = torch.cat((sep_embeddings, flattened_genres), dim=-1)
 
         logits = self.classifier(sep_embeddings)
+        probs = F.softmax(logits, dim=-1)
 
         if labels is not None:
             flattened_labels = labels[labels != -1]
 
             loss = self.loss(logits, flattened_labels)
-            return logits, loss, flattened_labels
+            return probs, loss, flattened_labels
 
-        return logits
+        return probs
 
     def training_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss, flattened_labels = self(
+        probs, loss, flattened_labels = self(
             input_ids, attention_mask, token_type_ids, genres, labels
         )
-        probs = F.softmax(logits, dim=-1)
 
-        metrics = get_training_metrics(probs, flattened_labels)
-        metrics["lr"] = self.trainer.optimizers[0].param_groups[0]["lr"]
-        return {"loss": loss, "log": metrics, "progress_bar": metrics}
+        acc = get_accuracy(probs, flattened_labels)
+        metrics = {
+            "lr": self.trainer.optimizers[0].param_groups[0]["lr"],
+            "train_acc": acc,
+        }
+
+        return {"loss": loss, "log": metrics, "train_acc": acc}
 
     def validation_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss, flattened_labels = self(
+        probs, loss, flattened_labels = self(
             input_ids, attention_mask, token_type_ids, genres, labels
         )
-        probs = F.softmax(logits, dim=-1)
 
         return {"val_loss": loss, "probs": probs, "labels": flattened_labels}
 
     def test_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, genres, labels = batch
-        logits, loss, flattened_labels = self(
+        probs, loss, flattened_labels = self(
             input_ids, attention_mask, token_type_ids, genres, labels
         )
-        probs = F.softmax(logits, dim=-1)
 
         return {"test_loss": loss, "probs": probs, "labels": flattened_labels}
 
