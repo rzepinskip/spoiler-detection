@@ -25,4 +25,5 @@ class BaseDataset:
     def add_dataset_specific_args(cls, parent_parser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument("--max_length", type=int, default=128)
+        parser.add_argument("--num_workers", type=int, default=0)
         return parser

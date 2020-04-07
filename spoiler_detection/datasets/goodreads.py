@@ -22,7 +22,7 @@ DATASET_MAP = {
 class GoodreadsSingleSentenceDataset(BaseDataset):
     def __init__(self, hparams):
         super().__init__()
-        self._max_length = hparams.max_length
+        self.hparams = hparams
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
@@ -31,7 +31,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
             genres = [encode_genre(x["genre"]) for x in samples]
 
             output = tokenizer.batch_encode_plus(
-                sentences, max_length=self._max_length, pad_to_max_length=True
+                sentences, max_length=self.hparams.max_length, pad_to_max_length=True
             )
             return (
                 tensor(output["input_ids"]),
@@ -52,7 +52,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=2,
+            num_workers=self.hparams.num_workers,
             collate_fn=prepare_sample,
             batch_size=batch_size,
             shuffle=True,
@@ -62,14 +62,16 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
 class GoodreadsMultiSentenceDataset(BaseDataset):
     def __init__(self, hparams):
         super().__init__()
-        self._max_length = hparams.max_length
+        self.hparams = hparams
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             genres = [encode_genre(x["genre"]) for x in samples]
             encoded_sentences = [
                 tokenizer.batch_encode_plus(
-                    s["sentences"], max_length=self._max_length, pad_to_max_length=True
+                    s["sentences"],
+                    max_length=self.hparams.max_length,
+                    pad_to_max_length=True,
                 )
                 for s in samples
             ]
@@ -106,7 +108,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=2,
+            num_workers=self.hparams.num_workers,
             collate_fn=prepare_sample,
             batch_size=batch_size,
             shuffle=True,
@@ -116,15 +118,14 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
 class GoodreadsSscDataset(BaseDataset):
     def __init__(self, hparams):
         super().__init__()
-        self._max_length = hparams.max_length
-        self._max_sent_per_example = 3
+        self.hparams = hparams
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         def prepare_sample(samples):
             sentences = ["[SEP]".join(x["sentences"]) for x in samples]
 
             output = tokenizer.batch_encode_plus(
-                sentences, max_length=self._max_length, pad_to_max_length=True
+                sentences, max_length=self.hparams.max_length, pad_to_max_length=True
             )
             input_ids = tensor(output["input_ids"])
             num_sentences = sum(
@@ -151,11 +152,11 @@ class GoodreadsSscDataset(BaseDataset):
                         tensor([x["genre"] for _ in range(len(x["sentences"]))])
                         for x in samples
                     ],
-                    max_length=self._max_sent_per_example,
+                    max_length=self.hparams.max_length,
                 ),
                 pad_sequence(
                     [tensor(x["labels"]) for x in samples],
-                    max_length=self._max_sent_per_example,
+                    max_length=self.hparams.max_length,
                 ),
             )
 
@@ -169,7 +170,7 @@ class GoodreadsSscDataset(BaseDataset):
                     labels.append(label)
                     sentences.append(sentence)
 
-                for (sentences_loop, labels_loop) in self.enforce__max_sent_per_example(
+                for (sentences_loop, labels_loop) in self.enforce_max_sent_per_example(
                     sentences, labels
                 ):
                     data.append(
@@ -183,36 +184,42 @@ class GoodreadsSscDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=2,
+            num_workers=self.hparams.num_workers,
             collate_fn=prepare_sample,
             batch_size=batch_size,
             shuffle=True,
         )
 
-    def enforce__max_sent_per_example(self, sentences, labels=None):
+    def enforce_max_sent_per_example(self, sentences, labels=None):
         """
-        Splits examples with len(sentences) > self._max_sent_per_example into multiple smaller examples
-        with len(sentences) <= self._max_sent_per_example.
+        Splits examples with len(sentences) > self.hparams.max_sent_per_example into multiple smaller examples
+        with len(sentences) <= self.hparams.max_sent_per_example.
         Recursively split the list of sentences into two halves until each half
-        has len(sentences) < <= self._max_sent_per_example. The goal is to produce splits that are of almost
+        has len(sentences) < <= self.hparams.max_sent_per_example. The goal is to produce splits that are of almost
         equal size to avoid the scenario where all splits are of size
-        self._max_sent_per_example then the last split is 1 or 2 sentences
+        self.hparams.max_sent_per_example then the last split is 1 or 2 sentences
         This will result into losing context around the edges of each examples.
         """
         if labels is not None:
             assert len(sentences) == len(labels)
 
         if (
-            len(sentences) > self._max_sent_per_example
-            and self._max_sent_per_example > 0
+            len(sentences) > self.hparams.max_sent_per_example
+            and self.hparams.max_sent_per_example > 0
         ):
             i = len(sentences) // 2
-            l1 = self.enforce__max_sent_per_example(
+            l1 = self.enforce_max_sent_per_example(
                 sentences[:i], None if labels is None else labels[:i]
             )
-            l2 = self.enforce__max_sent_per_example(
+            l2 = self.enforce_max_sent_per_example(
                 sentences[i:], None if labels is None else labels[i:]
             )
             return l1 + l2
         else:
             return [(sentences, labels)]
+
+    @classmethod
+    def add_dataset_specific_args(cls, parent_parser):
+        parser = BaseDataset.add_dataset_specific_args(parent_parser)
+        parser.add_argument("--max_sent_per_example", type=int, default=5)
+        return parser

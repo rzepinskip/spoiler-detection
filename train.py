@@ -41,6 +41,8 @@ def main(args):
         "default_save_path": wandb_logger.get_checkpoints_root(),
         "resume_from_checkpoint": wandb_logger.get_last_checkpoint(),
         "max_epochs": args.epochs,
+        "train_percent_check": args.dataset_percent,
+        "val_percent_check": args.dataset_percent,
     }
 
     if args.dry_run:
@@ -48,8 +50,9 @@ def main(args):
 
     if args.tpu:
         params["num_tpu_cores"] = 8
-    else:
-        params["gpus"] = 1
+
+    if args.gpus:
+        params["gpus"] = args.gpus
 
     trainer = Trainer(**params)
     trainer.fit(model)
@@ -76,6 +79,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--dry_run", action="store_true")
     parser.add_argument("--tpu", action="store_true")
+    parser.add_argument("--gpus", type=int, default=None)
+    parser.add_argument("--dataset_percent", type=float, default=1.0)
     temp_args, _ = parser.parse_known_args()
 
     parser = MODELS[temp_args.model_name].add_model_specific_args(parser)
