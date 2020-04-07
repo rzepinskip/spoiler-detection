@@ -9,9 +9,8 @@ from spoiler_detection.metrics import get_test_metrics, get_validation_metrics
 
 
 class BaseModel(pl.LightningModule):
-    def __init__(self, dataset, hparams):
+    def __init__(self, hparams):
         super(BaseModel, self).__init__()
-        self.dataset = dataset
         self.hparams = hparams
         self.num_labels = 2
 
@@ -113,13 +112,13 @@ class BaseModel(pl.LightningModule):
         return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
     def prepare_data(self):
-        self.train_dl = self.dataset.get_dataloader(
+        self.train_dl = self.hparams.dataset.get_dataloader(
             "train", self.tokenizer, self.hparams.train_batch_size
         )
-        self.val_dl = self.dataset.get_dataloader(
+        self.val_dl = self.hparams.dataset.get_dataloader(
             "val", self.tokenizer, self.hparams.eval_batch_size
         )
-        self.test_dl = self.dataset.get_dataloader(
+        self.test_dl = self.hparams.dataset.get_dataloader(
             "test", self.tokenizer, self.hparams.eval_batch_size
         )
 

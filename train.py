@@ -31,7 +31,9 @@ DATASETS = {
 
 def main(args):
     dataset = DATASETS[args.dataset_name](hparams=args)
-    model = MODELS[args.model_name](dataset=dataset, hparams=args)
+    args.dataset = dataset
+
+    model = MODELS[args.model_name](hparams=args)
 
     wandb_logger = ResumableWandbLogger(id=args.run_id, offline=args.dry_run)
     wandb_logger.log_hyperparams(args)
@@ -61,18 +63,17 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(add_help=False)
 
-    # Choose model and dataset
     parser.add_argument(
         "--model_name",
         type=str,
         default="PretrainedSingleSentenceModel",
-        help=str(DATASETS.keys()),
+        help=str(MODELS.keys()),
     )
     parser.add_argument(
         "--dataset_name",
         type=str,
         default="TvTropesMovieSingleSentenceDataset",
-        help=str(MODELS.keys()),
+        help=str(DATASETS.keys()),
     )
     parser.add_argument(
         "--run_id", type=str, help="Id of Wandb session to resume",

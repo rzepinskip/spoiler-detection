@@ -12,8 +12,8 @@ from spoiler_detection.models.base_model import BaseModel
 
 
 class PretrainedSingleSentenceModel(BaseModel):
-    def __init__(self, dataset, hparams):
-        super(PretrainedSingleSentenceModel, self).__init__(dataset, hparams)
+    def __init__(self, hparams):
+        super(PretrainedSingleSentenceModel, self).__init__(hparams)
 
         self.config = AutoConfig.from_pretrained(hparams.model_type)
         self.model = AutoModel.from_config(self.config)
