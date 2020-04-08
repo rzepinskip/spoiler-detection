@@ -131,7 +131,7 @@ class BaseModel(pl.LightningModule):
 
         parser.add_argument(
             "--learning_rate",
-            default=5e-5,
+            default=2e-5,
             type=float,
             help="The initial learning rate for Adam.",
         )
@@ -143,7 +143,7 @@ class BaseModel(pl.LightningModule):
         )
         parser.add_argument(
             "--adam_epsilon",
-            default=1e-8,
+            default=1e-6,
             type=float,
             help="Epsilon for Adam optimizer.",
         )
