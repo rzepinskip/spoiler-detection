@@ -94,7 +94,6 @@ class BaseModel(pl.LightningModule):
 
         t_total = (
             len(self.train_dl)
-            * self.trainer.train_percent_check
             // self.hparams.accumulate_grad_batches
             * float(self.hparams.epochs)
         )
