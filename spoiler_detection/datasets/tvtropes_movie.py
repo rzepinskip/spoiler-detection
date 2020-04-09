@@ -9,14 +9,9 @@ from torch.utils.data import DataLoader
 from transformers import cached_path
 
 from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
+from spoiler_detection.datasets.datasets_maps import get_tvtropes_map
 from spoiler_detection.datasets.utils import pad_sequence
 from spoiler_detection.feature_encoders import encode_genre
-
-DATASET_MAP = {
-    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv",
-    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv",
-    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-test.balanced.csv",
-}
 
 
 class TvTropesMovieSingleSentenceDataset(BaseDataset):
@@ -41,7 +36,7 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         data = []
-        with open(cached_path(DATASET_MAP[dataset_type])) as file:
+        with open(cached_path(get_tvtropes_map()[dataset_type])) as file:
             reader = csv.reader(file)
             next(reader)  # skip header
             for sentence, spoiler, verb, page, trope in reader:

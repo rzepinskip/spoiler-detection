@@ -9,15 +9,9 @@ from torch.utils.data import DataLoader
 from transformers import cached_path
 
 from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
+from spoiler_detection.datasets.datasets_maps import get_goodreads_map
 from spoiler_detection.datasets.utils import pad_sequence
 from spoiler_detection.feature_encoders import encode_genre
-
-DATASET_MAP = {
-    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
-    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
-    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
-    "dev": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-lite.json.gz",
-}
 
 
 class GoodreadsSingleSentenceDataset(BaseDataset):
@@ -43,7 +37,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         data = []
-        with gzip.open(cached_path(DATASET_MAP[dataset_type])) as file:
+        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
@@ -94,7 +88,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         data = []
-        with gzip.open(cached_path(DATASET_MAP[dataset_type])) as file:
+        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
@@ -159,7 +153,7 @@ class GoodreadsSscDataset(BaseDataset):
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
         data = []
-        with gzip.open(cached_path(DATASET_MAP[dataset_type])) as file:
+        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
