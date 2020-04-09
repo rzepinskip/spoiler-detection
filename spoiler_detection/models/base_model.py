@@ -92,9 +92,15 @@ class BaseModel(pl.LightningModule):
             eps=self.hparams.adam_epsilon,
         )
 
+        n_devices = 1
+        if self.trainer.use_tpu:
+            n_devices = self.trainer.num_tpu_cores
+        elif self.trainer.gpus:
+            n_devices = max(1, self.trainer.gpus)
         t_total = (
             len(self.train_dl)
             * self.trainer.train_percent_check
+            // n_devices
             // self.hparams.accumulate_grad_batches
             * float(self.hparams.epochs)
         )
