@@ -92,11 +92,15 @@ class BaseModel(pl.LightningModule):
             eps=self.hparams.adam_epsilon,
         )
 
+        if self.trainer is None:
+            # learning rate finding mode
+            return optimizer
+
         n_devices = 1
-        if self.trainer.use_tpu:
-            n_devices = self.trainer.num_tpu_cores
-        elif self.trainer.gpus:
-            n_devices = max(1, self.trainer.gpus)
+        if self.hparams.tpu:
+            n_devices = 8
+        elif self.hparams.gpus:
+            n_devices = max(1, self.hparams.gpus)
         t_total = (
             len(self.train_dl)
             * self.trainer.train_percent_check
