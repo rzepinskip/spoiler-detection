@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from multiprocessing import freeze_support
 
+import torch
 from pytorch_lightning import Trainer
 
 from spoiler_detection.datasets import (
@@ -31,6 +32,8 @@ DATASETS = {
 
 
 def main(args):
+    torch.manual_seed(args.seed)
+
     dataset = DATASETS[args.dataset_name](hparams=args)
     args.dataset = dataset
 
@@ -87,6 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("--tpu", action="store_true")
     parser.add_argument("--gpus", type=int, default=None)
     parser.add_argument("--dataset_percent", type=float, default=1.0)
+    parser.add_argument("--seed", type=int, default=44)
     temp_args, _ = parser.parse_known_args()
 
     parser = MODELS[temp_args.model_name].add_model_specific_args(parser)
