@@ -17,9 +17,9 @@ def test_GoodreadsSingleSentenceDataset():
     tokenizer = AutoTokenizer.from_pretrained("albert-base-v2")
 
     dataset = GoodreadsSingleSentenceDataset(args)
-    data_loader = dataset.get_dataloader("dev", tokenizer, batch_size=2)
-    x = list(data_loader)
-    assert len(x) > 0
+    data_loader = dataset.get_dataloader("test", tokenizer, batch_size=2)
+    x = iter(data_loader)
+    assert len(next(x)) > 0
 
 
 def test_GoodreadsMultiSentenceDataset():
@@ -29,9 +29,9 @@ def test_GoodreadsMultiSentenceDataset():
     tokenizer = AutoTokenizer.from_pretrained("albert-base-v2")
 
     dataset = GoodreadsMultiSentenceDataset(args)
-    data_loader = dataset.get_dataloader("dev", tokenizer, batch_size=2)
-    x = list(data_loader)
-    assert len(x) > 0
+    data_loader = dataset.get_dataloader("test", tokenizer, batch_size=2)
+    x = iter(data_loader)
+    assert len(next(x)) > 0
 
 
 def test_GoodreadsSscDataset():
@@ -41,6 +41,6 @@ def test_GoodreadsSscDataset():
     tokenizer = AutoTokenizer.from_pretrained("albert-base-v2")
 
     dataset = GoodreadsSscDataset(args)
-    data_loader = dataset.get_dataloader("dev", tokenizer, batch_size=2)
-    x = list(data_loader)
-    assert len(x) > 0
+    data_loader = dataset.get_dataloader("test", tokenizer, batch_size=2)
+    x = iter(data_loader)
+    assert len(next(x)) > 0
