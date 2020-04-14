@@ -5,6 +5,7 @@ sweep_config = {
     "program": "train.py",
     "method": "grid",
     "parameters": {
+        "sweep": {"values": [1]},
         "model_name": {"values": ["PretrainedSingleSentenceModel"]},
         "dataset_name": {"values": ["GoodreadsSingleSentenceDataset"]},
         "model_type": {"values": ["albert-base-v2"]},

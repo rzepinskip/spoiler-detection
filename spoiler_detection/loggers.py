@@ -6,8 +6,9 @@ from pytorch_lightning.loggers import WandbLogger
 
 
 class ResumableWandbLogger(WandbLogger):
-    def __init__(self, id=None, offline=False):
+    def __init__(self, id=None, offline=False, sweep=False):
         super().__init__(id=id, offline=offline, project="spoiler_detection")
+        self.sweep = sweep
         if id is not None and offline == False:
             run = wandb.Api().run(f"rzepinskip/spoiler_detection/{id}")
             for file in run.files():
@@ -20,6 +21,9 @@ class ResumableWandbLogger(WandbLogger):
         self.experiment.config.update(params, allow_val_change=True)
 
     def get_checkpoints_root(self):
+        if self.sweep:
+            return "wandb"
+
         return self.experiment.dir
 
     def get_last_checkpoint(self):

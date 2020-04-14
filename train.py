@@ -40,7 +40,7 @@ def main(args):
     model = MODELS[args.model_name](hparams=args)
 
     wandb_logger = ResumableWandbLogger(
-        id=args.run_id, offline=args.dry_run or args.offline
+        id=args.run_id, offline=args.dry_run or args.offline, sweep=args.sweep
     )
     wandb_logger.log_hyperparams(args)
 
@@ -91,6 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpus", type=int, default=None)
     parser.add_argument("--dataset_percent", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=44)
+    parser.add_argument("--sweep", type=int, choices={0, 1}, default=0)
     temp_args, _ = parser.parse_known_args()
 
     parser = MODELS[temp_args.model_name].add_model_specific_args(parser)
