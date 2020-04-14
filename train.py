@@ -56,8 +56,8 @@ def main(args):
     if args.dry_run:
         params["fast_dev_run"] = True
 
-    if args.tpu:
-        params["num_tpu_cores"] = 8
+    if args.tpu_cores:
+        params["num_tpu_cores"] = args.tpu_cores
 
     if args.gpus:
         params["gpus"] = args.gpus
@@ -85,9 +85,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run_id", type=str, help="Id of Wandb session to resume",
     )
-    parser.add_argument("--dry_run", action="store_true")
-    parser.add_argument("--offline", action="store_true")
-    parser.add_argument("--tpu", action="store_true")
+    parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
+    parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
+    parser.add_argument("--tpu_cores", type=int, choices={1, 8}, default=None)
     parser.add_argument("--gpus", type=int, default=None)
     parser.add_argument("--dataset_percent", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=44)

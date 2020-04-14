@@ -106,7 +106,7 @@ class PretrainedMultiSentenceModel(BaseModel):
     def add_model_specific_args(cls, parent_parser):
         parser = BaseModel.add_model_specific_args(parent_parser)
         parser.add_argument("--model_type", type=str, default="albert-base-v2")
-        parser.add_argument("--use_genres", action="store_true")
+        parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
         parser.add_argument("--classifier_dropout_prob", type=float, default=0.1)
         parser.add_argument("--positive_class_weight", type=float, default=0.5)
         return parser

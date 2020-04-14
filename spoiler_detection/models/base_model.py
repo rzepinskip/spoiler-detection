@@ -97,8 +97,8 @@ class BaseModel(pl.LightningModule):
             return optimizer
 
         n_devices = 1
-        if self.hparams.tpu:
-            n_devices = 8
+        if self.hparams.tpu_cores:
+            n_devices = self.hparams.tpu_cores
         elif self.hparams.gpus:
             n_devices = max(1, self.hparams.gpus)
         t_total = (
@@ -117,13 +117,13 @@ class BaseModel(pl.LightningModule):
 
     def prepare_data(self):
         self.train_dl = self.hparams.dataset.get_dataloader(
-            "train", self.tokenizer, self.hparams.train_batch_size
+            "train", self.tokenizer, self.hparams.batch_size
         )
         self.val_dl = self.hparams.dataset.get_dataloader(
-            "val", self.tokenizer, self.hparams.eval_batch_size
+            "val", self.tokenizer, self.hparams.batch_size
         )
         self.test_dl = self.hparams.dataset.get_dataloader(
-            "test", self.tokenizer, self.hparams.eval_batch_size
+            "test", self.tokenizer, self.hparams.batch_size
         )
 
     def train_dataloader(self):
@@ -170,7 +170,6 @@ class BaseModel(pl.LightningModule):
             help="Accumulates grads every k batches.",
         )
 
-        parser.add_argument("--train_batch_size", default=32, type=int)
-        parser.add_argument("--eval_batch_size", default=32, type=int)
+        parser.add_argument("--batch_size", default=32, type=int)
 
         return parser
