@@ -4,13 +4,14 @@ import json
 import logging
 from functools import partial
 
+import torch
 from torch import tensor
 from torch.utils.data import DataLoader
 from transformers import cached_path
 
 from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
 from spoiler_detection.datasets.datasets_maps import get_goodreads_map
-from spoiler_detection.datasets.utils import pad_sequence
+from spoiler_detection.datasets.utils import enforce_max_sent_per_example, pad_sequence
 from spoiler_detection.feature_encoders import encode_genre
 
 
@@ -162,8 +163,10 @@ class GoodreadsSscDataset(BaseDataset):
                     labels.append(label)
                     sentences.append(sentence)
 
-                for (sentences_loop, labels_loop) in self.enforce_max_sent_per_example(
-                    sentences, labels
+                for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
+                    sentences,
+                    labels=labels,
+                    max_sentences=self.hparams.max_sent_per_example,
                 ):
                     data.append(
                         {
@@ -181,34 +184,6 @@ class GoodreadsSscDataset(BaseDataset):
             batch_size=batch_size,
             shuffle=True,
         )
-
-    def enforce_max_sent_per_example(self, sentences, labels=None):
-        """
-        Splits examples with len(sentences) > self.hparams.max_sent_per_example into multiple smaller examples
-        with len(sentences) <= self.hparams.max_sent_per_example.
-        Recursively split the list of sentences into two halves until each half
-        has len(sentences) < <= self.hparams.max_sent_per_example. The goal is to produce splits that are of almost
-        equal size to avoid the scenario where all splits are of size
-        self.hparams.max_sent_per_example then the last split is 1 or 2 sentences
-        This will result into losing context around the edges of each examples.
-        """
-        if labels is not None:
-            assert len(sentences) == len(labels)
-
-        if (
-            len(sentences) > self.hparams.max_sent_per_example
-            and self.hparams.max_sent_per_example > 0
-        ):
-            i = len(sentences) // 2
-            l1 = self.enforce_max_sent_per_example(
-                sentences[:i], None if labels is None else labels[:i]
-            )
-            l2 = self.enforce_max_sent_per_example(
-                sentences[i:], None if labels is None else labels[i:]
-            )
-            return l1 + l2
-        else:
-            return [(sentences, labels)]
 
     @classmethod
     def add_dataset_specific_args(cls, parent_parser):
