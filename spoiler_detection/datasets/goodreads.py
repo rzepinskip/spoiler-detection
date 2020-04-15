@@ -61,7 +61,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
         self.hparams = hparams
 
     def prepare_sample(self, tokenizer, samples):
-        genres = [encode_genre(x["genre"]) for x in samples]
+        genres = [x["genre"] for x in samples]
         encoded_sentences = [
             tokenizer.batch_encode_plus(
                 s["sentences"],
@@ -73,18 +73,25 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
 
         return (
             pad_sequence(
-                [tensor(es["input_ids"]) for es in encoded_sentences], padding_value=0,
+                [tensor(es["input_ids"]) for es in encoded_sentences],
+                padding_value=0,
+                max_length=self.hparams.max_sent_per_example,
             ),
             pad_sequence(
                 [tensor(es["attention_mask"]) for es in encoded_sentences],
                 padding_value=False,
+                max_length=self.hparams.max_sent_per_example,
             ),
             pad_sequence(
                 [tensor(es["token_type_ids"]) for es in encoded_sentences],
                 padding_value=0,
+                max_length=self.hparams.max_sent_per_example,
             ),
             tensor(genres),
-            pad_sequence([tensor(x["labels"]) for x in samples]),
+            pad_sequence(
+                [tensor(x["labels"]) for x in samples],
+                max_length=self.hparams.max_sent_per_example,
+            ),
         )
 
     def get_dataloader(self, dataset_type, tokenizer, batch_size):
@@ -98,7 +105,18 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
                     labels.append(label)
                     sentences.append(sentence)
 
-                data.append({"labels": labels, "sentences": sentences, "genre": genres})
+                for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
+                    sentences,
+                    labels=labels,
+                    max_sentences=self.hparams.max_sent_per_example,
+                ):
+                    data.append(
+                        {
+                            "labels": labels_loop,
+                            "sentences": sentences_loop,
+                            "genre": encode_genre(genres),
+                        }
+                    )
 
         dataset = ListDataset(data)
         return DataLoader(
@@ -108,6 +126,12 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
             batch_size=batch_size,
             shuffle=True,
         )
+
+    @classmethod
+    def add_dataset_specific_args(cls, parent_parser):
+        parser = BaseDataset.add_dataset_specific_args(parent_parser)
+        parser.add_argument("--max_sent_per_example", type=int, default=5)
+        return parser
 
 
 class GoodreadsSscDataset(BaseDataset):
