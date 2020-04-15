@@ -119,16 +119,21 @@ class GoodreadsSscDataset(BaseDataset):
         sentences = ["[SEP]".join(x["sentences"]) for x in samples]
 
         output = tokenizer.batch_encode_plus(
-            sentences, max_length=self.hparams.max_length, pad_to_max_length=True
+            sentences,
+            max_length=self.hparams.max_length,
+            pad_to_max_length=True,
+            return_overflowing_tokens=True,
         )
         input_ids = tensor(output["input_ids"])
-        num_sentences = sum(sum(input_ids == tokenizer._convert_token_to_id("[SEP]")))
-        num_labels = sum([len(x["labels"]) for x in samples])
 
-        if num_sentences != num_labels:
+        if "num_truncated_tokens" in output and output["num_truncated_tokens"] != 0:
+            sentences_sums = torch.sum(
+                input_ids == tokenizer._convert_token_to_id("[SEP]"), dim=1
+            )
+            labels_sums = tensor([len(x["labels"]) for x in samples])
             for i in range(len(samples)):
-                s = len([x for x in output["input_ids"][i] if x == 3])
-                l = len(samples[i]["labels"])
+                s = sentences_sums[i]
+                l = labels_sums[i]
                 if s != l:
                     logging.debug(
                         f"\t Sentence #{i} is too long. Truncating. Original:\n {sentences[i]}"
