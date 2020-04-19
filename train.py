@@ -14,10 +14,12 @@ from tokenizers import BertWordPieceTokenizer
 from tqdm import tqdm
 from wandb.keras import WandbCallback
 
-from spoiler_detection.datasets.goodreads import get_goodreads
+from spoiler_detection.datasets.goodreads import get_goodreads_single, get_goodreads_ssc
 from spoiler_detection.optimization import create_optimizer
 from spoiler_detection.utils import SscAuc, SscBinaryCrossEntropy
 
+tf.random.set_seed(44)
+np.random.seed(44)
 warnings.simplefilter("ignore")
 
 MODEL_TYPE = "bert-base-uncased"
@@ -43,15 +45,15 @@ if tpu:
 """## Load text data into memory"""
 
 
-X_train_raw, y_train = get_goodreads(
+X_train_raw, y_train = get_goodreads_single(
     "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
 )
-X_val_raw, y_val = get_goodreads(
+X_val_raw, y_val = get_goodreads_single(
     "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
 )
 
-# X_train_raw, y_train = get_goodreads("https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz")
-# X_val_raw, y_val = get_goodreads("https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz")
+# X_train_raw, y_train = get_goodreads_single("https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz")
+# X_val_raw, y_val = get_goodreads_single("https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz")
 
 
 def fast_encode(texts, tokenizer, chunk_size=256, maxlen=512):
@@ -131,7 +133,7 @@ class SscModel(tf.keras.Model):
 
 class SingleModel(tf.keras.Model):
     def __init__(self, transformer):
-        super(SscModel, self).__init__()
+        super(SingleModel, self).__init__()
         self.transformer = transformer
         self.dropout = tf.keras.layers.Dropout(0.1)
         self.classifier = Dense(1, activation="sigmoid")
@@ -144,29 +146,73 @@ class SingleModel(tf.keras.Model):
         return out
 
 
+class PooledModel(tf.keras.Model):
+    def __init__(self, transformer):
+        super(PooledModel, self).__init__()
+        self.transformer = transformer
+        self.dropout = tf.keras.layers.Dropout(0.1)
+        self.classifier = Dense(1, activation="sigmoid")
+
+    def call(self, inputs):
+        pooled_output = self.transformer(inputs)[1]
+        x = self.dropout(pooled_output)
+        out = self.classifier(x)
+        return out
+
+
 num_train_steps = math.ceil(len(X_train) / BATCH_SIZE) * EPOCHS
 
 with strategy.scope():
     transformer = transformers.TFAutoModel.from_pretrained(MODEL_TYPE)
-    model = SscModel(transformer)
+    model = PooledModel(transformer)
     optimizer = create_optimizer(LR, num_train_steps, 0.1 * num_train_steps)
-    model.compile(optimizer, loss=SscBinaryCrossEntropy(), metrics=[SscAuc()])
-    # model.compile(
-    #     optimizer,
-    #     loss=tf.keras.losses.BinaryCrossentropy(),
-    #     metrics=[tf.keras.metrics.AUC()],
-    # )
+    # model.compile(optimizer, loss=SscBinaryCrossEntropy(name="loss"), metrics=[SscAuc(name="auc")])
+    model.compile(
+        optimizer,
+        loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
+        metrics=[tf.keras.metrics.AUC(name="auc")],
+    )
     if tpu is None:
         model.run_eagerly = True
 
 # model.summary()
 
-wandb.init(project="spoiler_detection-keras")
+
+class LogLearningRate(tf.keras.callbacks.Callback):
+    def on_train_batch_end(self, batch, logs=None):
+        lr = self.model.optimizer._decayed_lr("float32").numpy()
+        wandb.log({"lr": lr})
+
+
+callbacks = list()
+if False:
+    wandb.init(
+        project="spoiler_detection-keras",
+        tags=[],
+        config={
+            "learning_rate": LR,
+            "model_type": MODEL_TYPE,
+            "batch_size": BATCH_SIZE,
+            "max_length": MAX_LENGTH,
+        },
+    )
+
+    wandb_cb = WandbCallback(monitor="val_auc", save_model=False)
+    log_lr_cb = LogLearningRate()
+    early_stopping_cb = tf.keras.callbacks.EarlyStopping(
+        monitor="val_loss", patience=2, restore_best_weights=False,
+    )
+    checkpoints_cb = tf.keras.callbacks.ModelCheckpoint(
+        wandb.run.dir, monitor="val_loss", save_best_only=True, save_weights_only=False,
+    )
+
+    callbacks = [wandb_cb, log_lr_cb, early_stopping_cb]
 
 train_history = model.fit(
     train_dataset,
     validation_data=val_dataset,
-    # steps_per_epoch=10, validation_steps=5,
-    callbacks=[WandbCallback()],
-    epochs=EPOCHS,
+    steps_per_epoch=4,
+    validation_steps=1,
+    callbacks=callbacks,
+    epochs=2,
 )

@@ -18,7 +18,24 @@ def enforce_max_sent_per_example(sentences, labels=None, max_sentences=0):
     return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
 
 
-def get_goodreads(path):
+def get_goodreads_single(path):
+    X = list()
+    y = list()
+    with gzip.open(cached_path(path)) as file:
+        for line in file:
+            review_json = json.loads(line)
+            genres = review_json["genres"]
+            sentences, labels = list(), list()
+            for label, sentence in review_json["review_sentences"]:
+                X.append(sentence)
+                y.append(label)
+
+    X = np.array(X)
+    y = np.array(y)
+    return X, y
+
+
+def get_goodreads_ssc(path):
     X = list()
     y = list()
     with gzip.open(cached_path(path)) as file:
