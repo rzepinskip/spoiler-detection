@@ -12,7 +12,7 @@ class BaseModel(pl.LightningModule):
     def __init__(self, hparams):
         super(BaseModel, self).__init__()
         self.hparams = hparams
-        self.num_labels = 2
+        self.num_labels = 1
 
     def init_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):

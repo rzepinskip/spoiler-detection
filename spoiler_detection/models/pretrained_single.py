@@ -26,9 +26,9 @@ class PretrainedSingleSentenceModel(BaseModel):
 
         self.dropout = nn.Dropout(hparams.classifier_dropout_prob)
         self.classifier = nn.Linear(classifier_input_dim, self.num_labels)
-        self.loss = torch.nn.CrossEntropyLoss(
-            weight=torch.FloatTensor(
-                [1 - hparams.positive_class_weight, hparams.positive_class_weight]
+        self.loss = torch.nn.BCEWithLogitsLoss(
+            pos_weight=torch.FloatTensor(
+                [hparams.positive_class_weight / (1 - hparams.positive_class_weight)]
             )
         )
 
@@ -59,7 +59,7 @@ class PretrainedSingleSentenceModel(BaseModel):
         probs = F.softmax(logits, dim=-1)
 
         if labels is not None:
-            loss = self.loss(logits, labels)
+            loss = self.loss(logits.squeeze(), labels.float())
             return probs, loss
 
         return probs
