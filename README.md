@@ -1,5 +1,5 @@
 ```
-python train.py --model_name PretrainedSingleSentenceModel --dataset_name GoodreadsSingleSentenceDataset --batch_size 2 --batch_size 2 --dry_run 1
+python train.py --model_name PretrainedSingleSentenceModel --dataset_name GoodreadsSingleSentenceDataset --batch_size 2 --dry_run 1
 ```
 
 ```
