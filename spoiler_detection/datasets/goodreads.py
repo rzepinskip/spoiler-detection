@@ -6,17 +6,6 @@ import tensorflow as tf
 import transformers
 
 
-def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
-    assert len(sentences) == len(labels)
-
-    chunks = (
-        len(sentences) // max_sentences
-        if len(sentences) % max_sentences == 0
-        else len(sentences) // max_sentences + 1
-    )
-    return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
-
-
 def encode(texts, tokenizer, max_length=512):
     input_ids = tokenizer.batch_encode_plus(
         texts,
@@ -45,6 +34,17 @@ def get_goodreads_single(path, tokenizer, max_length):
     y = np.array(y)
     dataset = tf.data.Dataset.from_tensor_slices((X, y))
     return dataset, y
+
+
+def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
+    assert len(sentences) == len(labels)
+
+    chunks = (
+        len(sentences) // max_sentences
+        if len(sentences) % max_sentences == 0
+        else len(sentences) // max_sentences + 1
+    )
+    return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
 
 
 def get_goodreads_ssc(path, tokenizer, max_length):

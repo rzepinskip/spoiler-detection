@@ -17,6 +17,7 @@ from tqdm import tqdm
 from wandb.keras import WandbCallback
 
 from spoiler_detection.datasets.goodreads import get_goodreads_single, get_goodreads_ssc
+from spoiler_detection.datasets.tvtropes import get_tvtropes_movie_single
 from spoiler_detection.optimization import create_optimizer
 from spoiler_detection.utils import SscAuc, SscBinaryCrossEntropy
 
@@ -47,12 +48,18 @@ if tpu:
 
 tokenizer = transformers.AutoTokenizer.from_pretrained(MODEL_TYPE, use_fast=True)
 
-train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
-val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
+train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv"
+val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv"
+train_dataset_raw, y_train = get_tvtropes_movie_single(
+    train_path, tokenizer, MAX_LENGTH,
+)
+val_dataset_raw, _ = get_tvtropes_movie_single(val_path, tokenizer, MAX_LENGTH,)
+# train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
+# val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
 # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz"
 # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz"
-train_dataset_raw, y_train = get_goodreads_single(train_path, tokenizer, MAX_LENGTH,)
-val_dataset_raw, _ = get_goodreads_single(val_path, tokenizer, MAX_LENGTH,)
+# train_dataset_raw, y_train = get_goodreads_single(train_path, tokenizer, MAX_LENGTH,)
+# val_dataset_raw, _ = get_goodreads_single(val_path, tokenizer, MAX_LENGTH,)
 
 train_dataset = train_dataset_raw.shuffle(2048).batch(BATCH_SIZE).prefetch(AUTO)
 val_dataset = val_dataset_raw.batch(BATCH_SIZE).cache().prefetch(AUTO)
@@ -119,6 +126,7 @@ with strategy.scope():
         metrics=[
             tf.keras.metrics.AUC(name="auc"),
             tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
+            tf.keras.metrics.BinaryAccuracy(name="acc"),
             tfa.metrics.F1Score(num_classes=1, name="f1", threshold=0.5),
             tf.keras.metrics.TruePositives(name="tp"),
             tf.keras.metrics.FalsePositives(name="fp"),
