@@ -3,12 +3,11 @@ import json
 
 import numpy as np
 import tensorflow as tf
-from transformers import cached_path
+import transformers
 
 
-def enforce_max_sent_per_example(sentences, labels=None, max_sentences=0):
-    if labels is not None:
-        assert len(sentences) == len(labels)
+def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
+    assert len(sentences) == len(labels)
 
     chunks = (
         len(sentences) // max_sentences
@@ -18,10 +17,22 @@ def enforce_max_sent_per_example(sentences, labels=None, max_sentences=0):
     return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
 
 
-def get_goodreads_single(path):
+def encode(texts, tokenizer, max_length=512):
+    input_ids = tokenizer.batch_encode_plus(
+        texts,
+        return_attention_masks=False,
+        return_token_type_ids=False,
+        pad_to_max_length=True,
+        max_length=max_length,
+    )["input_ids"]
+
+    return np.array(input_ids)
+
+
+def get_goodreads_single(path, tokenizer, max_length):
     X = list()
     y = list()
-    with gzip.open(cached_path(path)) as file:
+    with gzip.open(transformers.cached_path(path)) as file:
         for line in file:
             review_json = json.loads(line)
             genres = review_json["genres"]
@@ -30,15 +41,16 @@ def get_goodreads_single(path):
                 X.append(sentence)
                 y.append(label)
 
-    X = np.array(X)
+    X = encode(X, tokenizer, max_length)
     y = np.array(y)
-    return X, y
+    dataset = tf.data.Dataset.from_tensor_slices((X, y))
+    return dataset, y
 
 
-def get_goodreads_ssc(path):
+def get_goodreads_ssc(path, tokenizer, max_length):
     X = list()
     y = list()
-    with gzip.open(cached_path(path)) as file:
+    with gzip.open(transformers.cached_path(path)) as file:
         for line in file:
             review_json = json.loads(line)
             genres = review_json["genres"]
@@ -53,6 +65,7 @@ def get_goodreads_ssc(path):
                 X.append("[SEP]".join(sentences_loop))
                 y.append(labels_loop)
 
-    X = np.array(X)
+    X = np.array(encode(X, tokenizer, max_length))
     y = tf.keras.preprocessing.sequence.pad_sequences(y, padding="post", value=-1)
-    return X, y
+    dataset = tf.data.Dataset.from_tensor_slices((X, y))
+    return dataset, y

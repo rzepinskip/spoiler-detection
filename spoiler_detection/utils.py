@@ -2,9 +2,6 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 
-
-
-
 def focal_loss(gamma=2.0, alpha=0.2):
     # https://www.tensorflow.org/addons/api_docs/python/tfa/losses/SigmoidFocalCrossEntropy
     def focal_loss_fixed(y_true, y_pred):
