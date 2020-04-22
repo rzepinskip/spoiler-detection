@@ -50,4 +50,5 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
             collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
             shuffle=True,
+            drop_last=True,
         )

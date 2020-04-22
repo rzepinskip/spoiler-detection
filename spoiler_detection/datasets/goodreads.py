@@ -52,6 +52,7 @@ class GoodreadsSingleSentenceDataset(BaseDataset):
             collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
             shuffle=True,
+            drop_last=True,
         )
 
 
@@ -125,6 +126,7 @@ class GoodreadsMultiSentenceDataset(BaseDataset):
             collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
             shuffle=True,
+            drop_last=True,
         )
 
     @classmethod
@@ -212,6 +214,7 @@ class GoodreadsSscDataset(BaseDataset):
             collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
             shuffle=True,
+            drop_last=True,
         )
 
     @classmethod
