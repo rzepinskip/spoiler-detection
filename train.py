@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=44)
 
     parser.add_argument("--model_type", default="bert-base-uncased", type=str)
-    parser.add_argument("--learning_rate", default=2e-5, type=float)
+    parser.add_argument("--learning_rate", default=2e-6, type=float)
     parser.add_argument("--dropout", default=0.1, type=float)
     parser.add_argument("--epochs", default=4, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
