@@ -9,12 +9,20 @@ class SequenceModel(tf.keras.Model):
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
 
-    def call(self, inputs):
-        sequence_output = self.transformer(inputs)[0]
-        cls_token = sequence_output[:, 0, :]
-        x = self.dropout(cls_token)
-        out = self.classifier(x)
-        return out
+    def call(self, inputs, training=False):
+        input_dict = {
+            "input_ids": inputs,
+            "token_type_ids": tf.zeros_like(inputs),
+            "attention_mask": tf.where(
+                tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
+            ),
+        }
+        x = self.transformer(input_dict, training=training)[0]
+        x = x[:, 0, :]
+        if training:
+            x = self.dropout(x, training=training)
+        x = self.classifier(x)
+        return x
 
 
 class PooledModel(tf.keras.Model):
@@ -24,8 +32,16 @@ class PooledModel(tf.keras.Model):
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
 
-    def call(self, inputs):
-        pooled_output = self.transformer(inputs)[1]
-        x = self.dropout(pooled_output)
-        out = self.classifier(x)
-        return out
+    def call(self, inputs, training=False):
+        input_dict = {
+            "input_ids": inputs,
+            "token_type_ids": tf.zeros_like(inputs),
+            "attention_mask": tf.where(
+                tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
+            ),
+        }
+        x = self.transformer(input_dict, training=training)[1]
+        if training:
+            x = self.dropout(x, training=training)
+        x = self.classifier(x)
+        return x
