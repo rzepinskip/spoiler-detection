@@ -1,0 +1,18 @@
+import tensorflow as tf
+import transformers
+
+
+class SscModel(tf.keras.Model):
+    def __init__(self, hparams):
+        super(SscModel, self).__init__()
+        self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
+        self.dropout = tf.keras.layers.Dropout(hparams.dropout)
+        self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
+
+    def call(self, inputs):
+        sequence_output = self.transformer(inputs)[0]
+        sep_mask = inputs == 102  # TODO unhardcode
+        sep_embeddings = sequence_output[sep_mask]
+        x = self.dropout(sep_embeddings)
+        out = self.classifier(x)
+        return out
