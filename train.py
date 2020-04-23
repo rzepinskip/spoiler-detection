@@ -14,12 +14,7 @@ import wandb
 from tqdm import tqdm
 from wandb.keras import WandbCallback
 
-from spoiler_detection import (
-    SigmoidFocalCrossEntropy,
-    SscAuc,
-    SscBinaryCrossEntropy,
-    create_optimizer,
-)
+from spoiler_detection import SscAuc, SscBinaryCrossEntropy, create_optimizer
 from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
     GoodreadsSscDataset,
@@ -63,7 +58,7 @@ def get_callbacks(args):
         ]
         callbacks += [
             tf.keras.callbacks.ModelCheckpoint(
-                wandb.run.dir,
+                f"{wandb.run.dir}/checkpoint.h5",
                 monitor="val_loss",
                 save_best_only=True,
                 save_weights_only=False,
@@ -90,12 +85,12 @@ def main(args):
         tf.tpu.experimental.initialize_tpu_system(tpu)
         strategy = tf.distribute.experimental.TPUStrategy(tpu)
 
-    # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
-    # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
+    train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
+    val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
     # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz"
     # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz"
-    train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv"
-    val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv"
+    # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv"
+    # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv"
     train_dataset_raw, y_train = dataset.get_dataset(train_path)
     val_dataset_raw, _ = dataset.get_dataset(train_path)
 
@@ -120,10 +115,13 @@ def main(args):
         # model.compile(optimizer, loss=SscBinaryCrossEntropy(name="loss"), metrics=[SscAuc(name="auc")])
         model.compile(
             optimizer,
-            loss=tfa.losses.SigmoidFocalCrossEntropy(
-                name="loss", reduction=tf.keras.losses.Reduction.AUTO
-            ),
-            # loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
+            # loss=tfa.losses.SigmoidFocalCrossEntropy(
+            #     alpha=0.5,
+            #     gamma=2.0,
+            #     name="loss",
+            #     reduction=tf.keras.losses.Reduction.AUTO,
+            # ),
+            loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
             metrics=[
                 tf.keras.metrics.AUC(name="auc"),
                 tf.keras.metrics.AUC(name="pr_auc", curve="PR"),

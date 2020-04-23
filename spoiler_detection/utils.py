@@ -3,22 +3,6 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 
 
-class SigmoidFocalCrossEntropy(tfa.losses.SigmoidFocalCrossEntropy):
-    def __init__(
-        self,
-        from_logits=False,
-        alpha=0.25,
-        gamma=2.0,
-        reduction=tf.keras.losses.Reduction.NONE,
-        name="sigmoid_focal_crossentropy",
-    ):
-        super(SigmoidFocalCrossEntropy, self).__init__(name=name, reduction=reduction)
-
-    def call(self, y_true, y_pred):
-        y_true = tf.cast(y_true, dtype=tf.float32)
-        return super(SigmoidFocalCrossEntropy, self).call(y_true, y_pred)
-
-
 class SscAuc(tf.keras.metrics.AUC):
     def __init__(self, **kwargs):
         super(SscAuc, self).__init__(name="auc", **kwargs)

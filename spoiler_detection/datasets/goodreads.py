@@ -35,7 +35,7 @@ class GoodreadsSingleDataset:
                 sentences, labels = list(), list()
                 for label, sentence in review_json["review_sentences"]:
                     X.append(sentence)
-                    y.append(label)
+                    y.append(float(label))
 
         X = encode(X, self.tokenizer, self.max_length)
         y = np.array(y)
@@ -71,7 +71,7 @@ class GoodreadsSscDataset:
                 genres = review_json["genres"]
                 sentences, labels = list(), list()
                 for label, sentence in review_json["review_sentences"]:
-                    labels.append(label)
+                    labels.append(float(label))
                     sentences.append(sentence)
 
                 for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
