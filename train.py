@@ -49,8 +49,10 @@ def get_callbacks(args):
                 project="spoiler_detection-keras", tags=[], config=args,
             )
 
-            callbacks += [WandbCallback(monitor="val_auc", save_model=False)]
-        callbacks += [LogLearningRate()]
+            callbacks += [
+                WandbCallback(monitor="val_auc", save_model=False),
+                LogLearningRate(),
+            ]
         callbacks += [
             tf.keras.callbacks.EarlyStopping(
                 monitor="val_loss", patience=2, restore_best_weights=False,
@@ -167,9 +169,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(add_help=False)
 
     parser.add_argument("--model_name", type=str, default="PooledModel")
-    parser.add_argument(
-        "--dataset_name", type=str, default="TvTropesMovieSingleDataset"
-    )
+    parser.add_argument("--dataset_name", type=str, default="GoodreadsSingleDataset")
     parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
     parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
     parser.add_argument("--seed", type=int, default=44)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", default=4, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--max_length", default=128, type=int)
-    parser.add_argument("--max_senteces", default=5, type=int)
+    parser.add_argument("--max_sentences", default=5, type=int)
     args = parser.parse_args()
 
     main(args)
