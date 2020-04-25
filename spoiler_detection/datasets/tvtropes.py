@@ -4,6 +4,12 @@ import numpy as np
 import tensorflow as tf
 import transformers
 
+DATA_SOURCES = {
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv",
+    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-test.balanced.csv",
+}
+
 
 def encode(texts, tokenizer, max_length=512):
     input_ids = tokenizer.batch_encode_plus(
@@ -24,10 +30,10 @@ class TvTropesMovieSingleDataset:
         )
         self.max_length = hparams.max_length
 
-    def get_dataset(self, path):
+    def get_dataset(self, dataset_type):
         X = list()
         y = list()
-        with open(transformers.cached_path(path)) as file:
+        with open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             reader = csv.reader(file)
             next(reader)  # skip header
             for sentence, spoiler, verb, page, trope in reader:

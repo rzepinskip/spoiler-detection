@@ -5,6 +5,12 @@ import numpy as np
 import tensorflow as tf
 import transformers
 
+DATA_SOURCES = {
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz",
+    "test": None,
+}
+
 
 def encode(texts, tokenizer, max_length=512):
     input_ids = tokenizer.batch_encode_plus(
@@ -25,10 +31,10 @@ class GoodreadsSingleDataset:
         )
         self.max_length = hparams.max_length
 
-    def get_dataset(self, path):
+    def get_dataset(self, dataset_type):
         X = list()
         y = list()
-        with gzip.open(transformers.cached_path(path)) as file:
+        with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
@@ -62,10 +68,10 @@ class GoodreadsSscDataset:
         self.max_length = hparams.max_length
         self.max_sentences = hparams.max_sentences
 
-    def get_dataset(self, path):
+    def get_dataset(self, dataset_type):
         X = list()
         y = list()
-        with gzip.open(transformers.cached_path(path)) as file:
+        with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]

@@ -87,14 +87,8 @@ def main(args):
         tf.tpu.experimental.initialize_tpu_system(tpu)
         strategy = tf.distribute.experimental.TPUStrategy(tpu)
 
-    train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz"
-    val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz"
-    # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz"
-    # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz"
-    # train_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv"
-    # val_path = "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv"
-    train_dataset_raw, y_train = dataset.get_dataset(train_path)
-    val_dataset_raw, _ = dataset.get_dataset(train_path)
+    train_dataset_raw, y_train = dataset.get_dataset("train")
+    val_dataset_raw, _ = dataset.get_dataset("val")
 
     train_dataset = (
         train_dataset_raw.shuffle(2048)
@@ -169,7 +163,9 @@ if __name__ == "__main__":
     parser = ArgumentParser(add_help=False)
 
     parser.add_argument("--model_name", type=str, default="PooledModel")
-    parser.add_argument("--dataset_name", type=str, default="GoodreadsSingleDataset")
+    parser.add_argument(
+        "--dataset_name", type=str, default="GoodreadsSingleEncodedGenreDataset"
+    )
     parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
     parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
     parser.add_argument("--seed", type=int, default=44)
