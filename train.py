@@ -14,7 +14,7 @@ import wandb
 from tqdm import tqdm
 from wandb.keras import WandbCallback
 
-from spoiler_detection import SscAuc, SscBinaryCrossEntropy, create_optimizer
+from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
 from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
     GoodreadsSscDataset,
@@ -102,13 +102,14 @@ def main(args):
     )
 
     num_train_steps = math.ceil(len(y_train) / args.batch_size) * args.epochs
+    neg_count, pos_count = (len(y_train[y_train == 0]), len(y_train[y_train == 1]))
+    pos_weight = neg_count / pos_count
 
     with strategy.scope():
         model = MODELS[args.model_name](hparams=args)
         optimizer = create_optimizer(
             args.learning_rate, num_train_steps, 0.1 * num_train_steps
         )
-        # model.compile(optimizer, loss=SscBinaryCrossEntropy(name="loss"), metrics=[SscAuc(name="auc")])
         model.compile(
             optimizer,
             # loss=tfa.losses.SigmoidFocalCrossEntropy(
@@ -117,7 +118,7 @@ def main(args):
             #     name="loss",
             #     reduction=tf.keras.losses.Reduction.AUTO,
             # ),
-            loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
+            loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
             metrics=[
                 tf.keras.metrics.AUC(name="auc"),
                 tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
@@ -132,12 +133,6 @@ def main(args):
         if tpu is None:
             model.run_eagerly = True
 
-    neg_count, pos_count = (len(y_train[y_train == 0]), len(y_train[y_train == 1]))
-    weights = {
-        0: max(neg_count, pos_count) / neg_count,
-        1: max(neg_count, pos_count) / pos_count,
-    }
-
     callbacks = get_callbacks(args)
     if args.dry_run:
         train_history = model.fit(
@@ -147,7 +142,6 @@ def main(args):
             validation_steps=2,
             callbacks=callbacks,
             epochs=2,
-            class_weight=weights,
         )
     else:
         train_history = model.fit(
@@ -155,7 +149,6 @@ def main(args):
             validation_data=val_dataset,
             callbacks=callbacks,
             epochs=args.epochs,
-            class_weight=weights,
         )
 
 

@@ -1,5 +1,6 @@
 import gzip
 import json
+import logging
 
 import numpy as np
 import tensorflow as tf
@@ -63,7 +64,7 @@ def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
 class GoodreadsSscDataset:
     def __init__(self, hparams):
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            hparams.model_type, use_fast=True
+            hparams.model_type, use_fast=False
         )
         self.max_length = hparams.max_length
         self.max_sentences = hparams.max_sentences
@@ -75,18 +76,48 @@ class GoodreadsSscDataset:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
-                sentences, labels = list(), list()
+                raw_sentences, raw_labels = list(), list()
                 for label, sentence in review_json["review_sentences"]:
-                    labels.append(float(label))
-                    sentences.append(sentence)
+                    raw_labels.append(float(label))
+                    raw_sentences.append(sentence)
 
+                sentences, labels = list(), list()
                 for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
-                    sentences, labels=labels, max_sentences=self.max_sentences,
+                    raw_sentences, labels=raw_labels, max_sentences=self.max_sentences,
                 ):
-                    X.append("[SEP]".join(sentences_loop))
-                    y.append(labels_loop)
+                    sentences.append("[SEP]".join(sentences_loop))
+                    labels.append(labels_loop)
 
-        X = np.array(encode(X, tokenizer, max_length))
-        y = tf.keras.preprocessing.sequence.pad_sequences(y, padding="post", value=-1)
+                output = self.tokenizer.batch_encode_plus(
+                    sentences,
+                    pad_to_max_length=True,
+                    max_length=self.max_length,
+                    add_special_tokens=True,
+                )
+
+                if any([x[self.max_length - 1] != 0 for x in output["input_ids"]]):
+                    input_ids = np.array(output["input_ids"])
+                    sentences_sums = np.sum(
+                        input_ids == self.tokenizer._convert_token_to_id("[SEP]"),
+                        axis=1,
+                    )
+                    labels_sums = [len(x) for x in labels]
+                    for i in range(len(labels)):
+                        s = sentences_sums[i]
+                        l = labels_sums[i]
+                        if s != l:
+                            logging.debug(
+                                f"[#{i}] Truncating. Original:\n {sentences[i]}"
+                            )
+                            labels[i] = labels[i][:s]
+
+                X.extend(output["input_ids"])
+                y.extend(
+                    tf.keras.preprocessing.sequence.pad_sequences(
+                        labels, padding="post", value=-1, maxlen=self.max_sentences
+                    )
+                )
+
+        X = np.array(X)
         dataset = tf.data.Dataset.from_tensor_slices((X, y))
-        return dataset, y
+        return dataset, y[y != -1]

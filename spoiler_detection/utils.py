@@ -1,21 +1,27 @@
 
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 
-class SscAuc(tf.keras.metrics.AUC):
-    def __init__(self, **kwargs):
-        super(SscAuc, self).__init__(name="auc", **kwargs)
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = tf.slice(tf.reshape(y_true, [-1]), [0], [y_pred.shape[1]])
-        super(SscAuc, self).update_state(y_true, y_pred, sample_weight)
-
-
-class SscBinaryCrossEntropy(tf.keras.losses.BinaryCrossentropy):
-    def __init__(self, **kwargs):
-        super(SscBinaryCrossEntropy, self).__init__(name="loss", **kwargs)
+# Adapted from https://www.tensorflow.org/guide/keras/train_and_evaluate#specifying_a_loss_metrics_and_an_optimizer
+class WeightedBinaryCrossEntropy(tf.keras.losses.Loss):
+    """
+    Args:
+      pos_weight: Scalar to affect the positive labels of the loss function.
+      weight: Scalar to affect the entirety of the loss function.
+      from_logits: Whether to compute loss from logits or the probability.
+      reduction: Type of tf.keras.losses.Reduction to apply to loss.
+      name: Name of the loss function.
+    """
+    def __init__(self, pos_weight=1, weight=1, from_logits=False,
+                 reduction=tf.keras.losses.Reduction.AUTO,
+                 name='weighted_binary_crossentropy'):
+        super().__init__(reduction=reduction, name=name)
+        self.pos_weight = pos_weight
+        self.weight = weight
+        self.from_logits = from_logits
 
     def call(self, y_true, y_pred):
-        y_true = tf.slice(tf.reshape(y_true, [-1]), [0], [y_pred.shape[1]])
-        return super(SscBinaryCrossEntropy, self).call(y_true, y_pred)
+        ce = tf.losses.binary_crossentropy(
+            y_true, y_pred, from_logits=self.from_logits)[:,None]
+        ce = self.weight * (ce*(1-y_true) + self.pos_weight*ce*(y_true))
+        return ce
