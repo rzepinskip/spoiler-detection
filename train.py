@@ -105,6 +105,22 @@ def main(args):
     neg_count, pos_count = (len(y_train[y_train == 0]), len(y_train[y_train == 1]))
     pos_weight = neg_count / pos_count
 
+    class SscAuc(tf.keras.metrics.AUC):
+        def __init__(self, **kwargs):
+            super(SscAuc, self).__init__(**kwargs)
+
+        def update_state(self, y_true, y_pred, sample_weight=None):
+            y_true = tf.expand_dims(tf.boolean_mask(y_true, tf.not_equal(y_true, -1)), 1)
+            super(SscAuc, self).update_state(y_true, y_pred, sample_weight)
+
+    class SscBinaryCrossEntropy(tf.keras.losses.BinaryCrossentropy):
+        def __init__(self, **kwargs):
+            super(SscBinaryCrossEntropy, self).__init__(**kwargs)
+
+        def call(self, y_true, y_pred):
+            y_true = tf.expand_dims(tf.boolean_mask(y_true, tf.not_equal(y_true, -1)), 1)
+            return super(SscBinaryCrossEntropy, self).call(y_true, y_pred)
+
     with strategy.scope():
         model = MODELS[args.model_name](hparams=args)
         optimizer = create_optimizer(
@@ -118,17 +134,19 @@ def main(args):
             #     name="loss",
             #     reduction=tf.keras.losses.Reduction.AUTO,
             # ),
-            loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
-            metrics=[
-                tf.keras.metrics.AUC(name="auc"),
-                tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
-                tf.keras.metrics.BinaryAccuracy(name="acc"),
-                tfa.metrics.F1Score(num_classes=1, name="f1", threshold=0.5),
-                tf.keras.metrics.TruePositives(name="tp"),
-                tf.keras.metrics.FalsePositives(name="fp"),
-                tf.keras.metrics.TrueNegatives(name="tn"),
-                tf.keras.metrics.FalseNegatives(name="fn"),
-            ],
+            loss=SscBinaryCrossEntropy(name="loss"),
+            metrics=[SscAuc(name="auc")]
+            # loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
+            # metrics=[
+            #     tf.keras.metrics.AUC(name="auc"),
+            #     tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
+            #     tf.keras.metrics.BinaryAccuracy(name="acc"),
+            #     tfa.metrics.F1Score(num_classes=1, name="f1", threshold=0.5),
+            #     tf.keras.metrics.TruePositives(name="tp"),
+            #     tf.keras.metrics.FalsePositives(name="fp"),
+            #     tf.keras.metrics.TrueNegatives(name="tn"),
+            #     tf.keras.metrics.FalseNegatives(name="fn"),
+            # ],
         )
         if tpu is None:
             model.run_eagerly = True
