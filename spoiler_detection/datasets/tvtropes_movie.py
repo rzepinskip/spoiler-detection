@@ -46,9 +46,9 @@ class TvTropesMovieSingleSentenceDataset(BaseDataset):
         dataset = ListDataset(data)
         return DataLoader(
             dataset,
-            num_workers=2,
+            num_workers=self.hparams.num_workers,
             collate_fn=partial(self.prepare_sample, tokenizer),
             batch_size=batch_size,
-            shuffle=True,
+            shuffle=True if dataset_type == "train" else False,
             drop_last=True,
         )
