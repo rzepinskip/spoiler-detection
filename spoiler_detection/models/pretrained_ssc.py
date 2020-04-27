@@ -28,9 +28,9 @@ class PretrainedSscModel(BaseModel):
 
         self.dropout = nn.Dropout(hparams.classifier_dropout_prob)
         self.classifier = nn.Linear(classifier_input_dim, self.num_labels)
-        self.loss = torch.nn.BCEWithLogitsLoss(
-            pos_weight=torch.FloatTensor(
-                [hparams.positive_class_weight / (1 - hparams.positive_class_weight)]
+        self.loss = torch.nn.CrossEntropyLoss(
+            weight=torch.FloatTensor(
+                [1 - hparams.positive_class_weight, hparams.positive_class_weight]
             )
         )
 
@@ -67,8 +67,8 @@ class PretrainedSscModel(BaseModel):
 
         if labels is not None:
             flattened_labels = labels[labels != -1]
-
-            loss = self.loss(logits.squeeze(), flattened_labels.float())
+            
+            loss = self.loss(logits, flattened_labels)
             return probs, loss, flattened_labels
 
         return probs

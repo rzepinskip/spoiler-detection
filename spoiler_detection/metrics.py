@@ -4,7 +4,7 @@ from sklearn import metrics
 
 def get_accuracy(probs, truth):
     probs, truth = probs.cpu().detach(), truth.cpu().detach()
-    predicted = (probs > 0.5).float()
+    predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(truth, predicted)
 
     return torch.tensor(acc)
@@ -12,12 +12,12 @@ def get_accuracy(probs, truth):
 
 def get_metrics(probs, truth, prefix):
     probs, truth = probs.cpu().detach(), truth.cpu().detach()
-    predicted = (probs > 0.5).float()
+    predicted = torch.argmax(probs, dim=1)
     acc = metrics.accuracy_score(truth, predicted)
     f1 = metrics.f1_score(truth, predicted, average="binary")
     if truth.min() != truth.max():
-        auc = metrics.roc_auc_score(truth, probs)
-        precision, recall, _ = metrics.precision_recall_curve(truth, probs)
+        auc = metrics.roc_auc_score(truth, probs[:, 1],)
+        precision, recall, _ = metrics.precision_recall_curve(truth, probs[:, 1],)
         pr_auc = metrics.auc(recall, precision)
     else:
         auc = float("nan")
