@@ -25,3 +25,74 @@ class SscModel(tf.keras.Model):
         x = self.dropout(sequence_output, training=kwargs.get("training", False))
         out = self.classifier(x)
         return out
+
+    def train_step(self, data):
+        data = data_adapter.expand_1d(data)
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+
+        with backprop.GradientTape() as tape:
+            y_pred = self(x, training=True)
+
+            mask = tf.not_equal(y, -1)
+            y = tf.expand_dims(tf.boolean_mask(y, mask), 1)
+            y_pred = tf.expand_dims(tf.boolean_mask(y_pred, mask), 1)
+
+            sample_weight = tf.ones_like(y_pred)
+            loss = self.compiled_loss(
+                y, y_pred, sample_weight, regularization_losses=self.losses
+            )
+
+        _minimize(
+            self.distribute_strategy,
+            tape,
+            self.optimizer,
+            loss,
+            self.trainable_variables,
+        )
+
+        self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        return {m.name: m.result() for m in self.metrics}
+
+    def test_step(self, data):
+        data = data_adapter.expand_1d(data)
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+
+        y_pred = self(x, training=False)
+        mask = tf.not_equal(y, -1)
+        y = tf.expand_dims(tf.boolean_mask(y, mask), 1)
+        y_pred = tf.expand_dims(tf.boolean_mask(y_pred, mask), 1)
+        self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
+
+        self.compiled_metrics.update_state(y, y_pred, sample_weight)
+        return {m.name: m.result() for m in self.metrics}
+
+
+def _minimize(strategy, tape, optimizer, loss, trainable_variables):
+    with tape:
+        if isinstance(optimizer, lso.LossScaleOptimizer):
+            loss = optimizer.get_scaled_loss(loss)
+
+    gradients = tape.gradient(loss, trainable_variables)
+
+    aggregate_grads_outside_optimizer = (
+        optimizer._HAS_AGGREGATE_GRAD
+        and not isinstance(  # pylint: disable=protected-access
+            strategy.extended, parameter_server_strategy.ParameterServerStrategyExtended
+        )
+    )
+
+    if aggregate_grads_outside_optimizer:
+        gradients = optimizer._aggregate_gradients(
+            zip(gradients, trainable_variables)  # pylint: disable=protected-access
+        )
+    if isinstance(optimizer, lso.LossScaleOptimizer):
+        gradients = optimizer.get_unscaled_gradients(gradients)
+    gradients = optimizer._clip_gradients(gradients)  # pylint: disable=protected-access
+    if trainable_variables:
+        if aggregate_grads_outside_optimizer:
+            optimizer.apply_gradients(
+                zip(gradients, trainable_variables),
+                experimental_aggregate_gradients=False,
+            )
+        else:
+            optimizer.apply_gradients(zip(gradients, trainable_variables))
