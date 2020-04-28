@@ -22,8 +22,10 @@ class SscModel(tf.keras.Model):
             tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
         )
         sequence_output = self.transformer([input_ids, attention_mask], **kwargs)[0]
-        sep_mask = tf.equal(inputs, 102)
-        sep_embeddings = tf.boolean_mask(sequence_output, sep_mask)
+        # sep_mask = tf.equal(inputs, 102)
+        # sep_embeddings = tf.boolean_mask(sequence_output, sep_mask)
+        sep_embeddings = sequence_output
         x = self.dropout(sep_embeddings, training=kwargs.get("training", False))
         out = self.classifier(x)
         return out
+        # return tf.squeeze(out)

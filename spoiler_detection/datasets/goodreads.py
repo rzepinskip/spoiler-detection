@@ -71,7 +71,9 @@ class GoodreadsSscDataset:
 
     def get_dataset(self, dataset_type):
         X = list()
+        X_weights = list()
         y = list()
+        y_true = list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
@@ -87,16 +89,12 @@ class GoodreadsSscDataset:
                 ):
                     sentences.append("[SEP]".join(sentences_loop))
                     labels.append(labels_loop)
+                    y_true.extend(labels_loop)
 
-                output = self.tokenizer.batch_encode_plus(
-                    sentences,
-                    pad_to_max_length=True,
-                    max_length=self.max_length,
-                    add_special_tokens=True,
-                )
+                output = encode(sentences, self.tokenizer, self.max_length,)
 
-                if any([x[self.max_length - 1] != 0 for x in output["input_ids"]]):
-                    input_ids = np.array(output["input_ids"])
+                if any([x[self.max_length - 1] != 0 for x in output]):
+                    input_ids = np.array(output)
                     sentences_sums = np.sum(
                         input_ids == self.tokenizer._convert_token_to_id("[SEP]"),
                         axis=1,
@@ -110,14 +108,17 @@ class GoodreadsSscDataset:
                                 f"[#{i}] Truncating. Original:\n {sentences[i]}"
                             )
                             labels[i] = labels[i][:s]
-
-                X.extend(output["input_ids"])
-                y.extend(
-                    tf.keras.preprocessing.sequence.pad_sequences(
-                        labels, padding="post", value=-1, maxlen=self.max_sentences
-                    )
+                sample_weight = 1.0 * (output == 102)
+                indices = tf.where(sample_weight != 0)
+                updates = [item for sublist in labels for item in sublist]
+                labels_scattered = tf.tensor_scatter_nd_update(
+                    -1.0 * tf.ones_like(sample_weight), indices, updates
                 )
+                X.extend(output)
+                X_weights.extend(sample_weight)
+                y.extend(tf.expand_dims(labels_scattered, -1))
 
-        X = np.array(X)
-        dataset = tf.data.Dataset.from_tensor_slices((X, y))
-        return dataset, y[y != -1]
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (np.array(X), y, np.array(X_weights))
+        )
+        return dataset, np.array(y_true)
