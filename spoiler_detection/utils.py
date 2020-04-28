@@ -3,24 +3,6 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 
 
-class SscAuc(tf.keras.metrics.AUC):
-    def __init__(self, **kwargs):
-        super(SscAuc, self).__init__(name="auc", **kwargs)
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = tf.expand_dims(tf.boolean_mask(tf.not_equal(y_true, -1)), 1)
-        super(SscAuc, self).update_state(y_true, y_pred, sample_weight)
-
-
-class SscBinaryCrossEntropy(tf.keras.losses.BinaryCrossentropy):
-    def __init__(self, **kwargs):
-        super(SscBinaryCrossEntropy, self).__init__(name="loss", **kwargs)
-
-    def call(self, y_true, y_pred):
-        y_true = tf.expand_dims(tf.boolean_mask(tf.not_equal(y_true, -1)), 1)
-        return super(SscBinaryCrossEntropy, self).call(y_true, y_pred)
-
-
 # Adapted from https://www.tensorflow.org/guide/keras/train_and_evaluate#specifying_a_loss_metrics_and_an_optimizer
 class WeightedBinaryCrossEntropy(tf.keras.losses.Loss):
     """
@@ -44,3 +26,25 @@ class WeightedBinaryCrossEntropy(tf.keras.losses.Loss):
             y_true, y_pred, from_logits=self.from_logits)[:,None]
         ce = self.weight * (ce*(1-y_true) + self.pos_weight*ce*(y_true))
         return ce
+
+
+class SscAuc(tf.keras.metrics.AUC):
+    def __init__(self, **kwargs):
+        super(SscAuc, self).__init__(name="auc", **kwargs)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        mask = tf.not_equal(y_true, -1)
+        y_true = tf.boolean_mask(y_true, mask)
+        y_pred = tf.boolean_mask(y_pred, mask)
+        super(SscAuc, self).update_state(y_true, y_pred, sample_weight)
+
+
+class SscWeightedBinaryCrossEntropy(WeightedBinaryCrossEntropy):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def call(self, y_true, y_pred):
+        mask = tf.not_equal(y_true, -1)
+        y_true = tf.expand_dims(tf.boolean_mask(y_true, mask), 1)
+        y_pred = tf.expand_dims(tf.boolean_mask(y_pred, mask), 1)
+        return super(SscWeightedBinaryCrossEntropy, self).call(y_true, y_pred)

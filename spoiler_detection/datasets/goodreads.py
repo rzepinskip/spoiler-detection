@@ -71,7 +71,6 @@ class GoodreadsSscDataset:
 
     def get_dataset(self, dataset_type):
         X = list()
-        X_weights = list()
         y = list()
         y_true = list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
@@ -108,17 +107,13 @@ class GoodreadsSscDataset:
                                 f"[#{i}] Truncating. Original:\n {sentences[i]}"
                             )
                             labels[i] = labels[i][:s]
-                sample_weight = 1.0 * (output == 102)
-                indices = tf.where(sample_weight != 0)
+                indices = tf.where(output == 102)
                 updates = [item for sublist in labels for item in sublist]
                 labels_scattered = tf.tensor_scatter_nd_update(
-                    -1.0 * tf.ones_like(sample_weight), indices, updates
+                    tf.constant(-1.0, shape=tf.shape(output)), indices, updates
                 )
                 X.extend(output)
-                X_weights.extend(sample_weight)
                 y.extend(tf.expand_dims(labels_scattered, -1))
 
-        dataset = tf.data.Dataset.from_tensor_slices(
-            (np.array(X), y, np.array(X_weights))
-        )
+        dataset = tf.data.Dataset.from_tensor_slices((np.array(X), y))
         return dataset, np.array(y_true)

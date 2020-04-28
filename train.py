@@ -14,7 +14,12 @@ import wandb
 from tqdm import tqdm
 from wandb.keras import WandbCallback
 
-from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
+from spoiler_detection import (
+    SscAuc,
+    SscWeightedBinaryCrossEntropy,
+    WeightedBinaryCrossEntropy,
+    create_optimizer,
+)
 from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
     GoodreadsSscDataset,
@@ -118,18 +123,20 @@ def main(args):
             #     name="loss",
             #     reduction=tf.keras.losses.Reduction.AUTO,
             # ),
-            loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
+            # loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
             # loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
-            weighted_metrics=[
-                tf.keras.metrics.AUC(name="auc"),
-                tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
-                tf.keras.metrics.BinaryAccuracy(name="acc"),
-                # tfa.metrics.F1Score(num_classes=1, name="f1", threshold=0.5),
-                tf.keras.metrics.TruePositives(name="tp"),
-                tf.keras.metrics.FalsePositives(name="fp"),
-                tf.keras.metrics.TrueNegatives(name="tn"),
-                tf.keras.metrics.FalseNegatives(name="fn"),
-            ],
+            loss=SscWeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
+            metrics=SscAuc()
+            # metrics=[
+            #     tf.keras.metrics.AUC(name="auc"),
+            #     tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
+            #     tf.keras.metrics.BinaryAccuracy(name="acc"),
+            #     # tfa.metrics.F1Score(num_classes=1, name="f1", threshold=0.5),
+            #     tf.keras.metrics.TruePositives(name="tp"),
+            #     tf.keras.metrics.FalsePositives(name="fp"),
+            #     tf.keras.metrics.TrueNegatives(name="tn"),
+            #     tf.keras.metrics.FalseNegatives(name="fn"),
+            # ],
         )
         if tpu is None:
             model.run_eagerly = True
