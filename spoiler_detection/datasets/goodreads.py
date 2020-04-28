@@ -33,8 +33,7 @@ class GoodreadsSingleDataset:
         self.max_length = hparams.max_length
 
     def get_dataset(self, dataset_type):
-        X = list()
-        y = list()
+        X, y = list(), list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
@@ -64,14 +63,14 @@ def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
 class GoodreadsSscDataset:
     def __init__(self, hparams):
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            hparams.model_type, use_fast=False
+            hparams.model_type, use_fast=True
         )
         self.max_length = hparams.max_length
         self.max_sentences = hparams.max_sentences
+        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
 
     def get_dataset(self, dataset_type):
-        X = list()
-        y = list()
+        X, y = list(), list()
         y_true = list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
@@ -94,10 +93,7 @@ class GoodreadsSscDataset:
 
                 if any([x[self.max_length - 1] != 0 for x in output]):
                     input_ids = np.array(output)
-                    sentences_sums = np.sum(
-                        input_ids == self.tokenizer._convert_token_to_id("[SEP]"),
-                        axis=1,
-                    )
+                    sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
                     labels_sums = [len(x) for x in labels]
                     for i in range(len(labels)):
                         s = sentences_sums[i]
@@ -107,7 +103,7 @@ class GoodreadsSscDataset:
                                 f"[#{i}] Truncating. Original:\n {sentences[i]}"
                             )
                             labels[i] = labels[i][:s]
-                indices = tf.where(output == 102)
+                indices = tf.where(output == self.sep_id)
                 updates = [item for sublist in labels for item in sublist]
                 labels_scattered = tf.tensor_scatter_nd_update(
                     tf.constant(-1.0, shape=tf.shape(output)), indices, updates
