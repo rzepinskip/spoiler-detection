@@ -44,6 +44,7 @@ def get_callbacks(args):
     callbacks = list()
     if not args.dry_run:
         callbacks = []
+        save_dir = "./checkpoint.h5"
         if not args.offline:
             wandb.init(
                 project="spoiler_detection-keras", tags=[], config=args,
@@ -53,6 +54,7 @@ def get_callbacks(args):
                 WandbCallback(monitor="val_auc", save_model=False),
                 LogLearningRate(),
             ]
+            save_dir = f"{wandb.run.dir}/checkpoint.h5"
         callbacks += [
             tf.keras.callbacks.EarlyStopping(
                 monitor="val_loss", patience=2, restore_best_weights=False,
@@ -60,7 +62,7 @@ def get_callbacks(args):
         ]
         callbacks += [
             tf.keras.callbacks.ModelCheckpoint(
-                f"{wandb.run.dir}/checkpoint.h5",
+                save_dir,
                 monitor="val_loss",
                 save_best_only=True,
                 save_weights_only=False,
@@ -158,7 +160,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--model_name", type=str, default="PooledModel")
     parser.add_argument(
-        "--dataset_name", type=str, default="GoodreadsSingleEncodedGenreDataset"
+        "--dataset_name", type=str, default="TvTropesMovieSingleDataset"
     )
     parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
     parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
