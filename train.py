@@ -54,7 +54,8 @@ def get_callbacks(args):
                 WandbCallback(monitor="val_auc", save_model=False),
                 LogLearningRate(),
             ]
-            save_dir = f"{wandb.run.dir}/checkpoint.tf"
+            if args.upload_checkpoints:
+                save_dir = f"{wandb.run.dir}/checkpoint.tf"
         callbacks += [
             tf.keras.callbacks.EarlyStopping(
                 monitor="val_loss", patience=2, restore_best_weights=False,
@@ -155,6 +156,7 @@ if __name__ == "__main__":
         "--dataset_name", type=str, default="TvTropesMovieSingleDataset"
     )
     parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
+    parser.add_argument("--upload_checkpoints", type=int, choices={0, 1}, default=1)
     parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
     parser.add_argument("--seed", type=int, default=44)
 
