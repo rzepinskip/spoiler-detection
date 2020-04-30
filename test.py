@@ -35,42 +35,6 @@ DATASETS = {
 }
 
 
-def get_callbacks(args):
-    class LogLearningRate(tf.keras.callbacks.Callback):
-        def on_train_batch_end(self, batch, logs=None):
-            lr = self.model.optimizer._decayed_lr("float32").numpy()
-            wandb.log({"lr": lr})
-
-    callbacks = list()
-    if not args.dry_run:
-        callbacks = []
-        save_dir = "./checkpoint.tf"
-        if not args.offline:
-            wandb.init(
-                project="spoiler_detection-keras", tags=[], config=args,
-            )
-
-            callbacks += [
-                WandbCallback(monitor="val_auc", save_model=False),
-                LogLearningRate(),
-            ]
-            save_dir = f"{wandb.run.dir}/checkpoint.tf"
-        callbacks += [
-            tf.keras.callbacks.EarlyStopping(
-                monitor="val_loss", patience=2, restore_best_weights=False,
-            )
-        ]
-        callbacks += [
-            tf.keras.callbacks.ModelCheckpoint(
-                save_dir,
-                monitor="val_loss",
-                save_best_only=True,
-                save_weights_only=True,
-            )
-        ]
-    return callbacks
-
-
 def main(args):
     tf.random.set_seed(args.seed)
     np.random.seed(args.seed)
@@ -89,39 +53,21 @@ def main(args):
         tf.tpu.experimental.initialize_tpu_system(tpu)
         strategy = tf.distribute.experimental.TPUStrategy(tpu)
 
-    train_dataset_raw, y_train = dataset.get_dataset("train")
-    val_dataset_raw, _ = dataset.get_dataset("val")
+    test_dataset_raw, _ = dataset.get_dataset("test")
 
-    train_dataset = (
-        train_dataset_raw.shuffle(2048)
-        .batch(args.batch_size)
-        .prefetch(tf.data.experimental.AUTOTUNE)
-    )
-    val_dataset = (
-        val_dataset_raw.batch(args.batch_size)
-        .cache()
-        .prefetch(tf.data.experimental.AUTOTUNE)
+    test_dataset = test_dataset_raw.batch(args.batch_size).prefetch(
+        tf.data.experimental.AUTOTUNE
     )
 
-    num_train_steps = math.ceil(len(y_train) / args.batch_size) * args.epochs
-    neg_count, pos_count = (len(y_train[y_train == 0]), len(y_train[y_train == 1]))
-    pos_weight = neg_count / pos_count
+    # test_history = model.evaluate(test_dataset)
+    # dict(zip(model.metrics_names, test_history))
 
     with strategy.scope():
         model = MODELS[args.model_name](hparams=args)
-        optimizer = create_optimizer(
-            args.learning_rate, num_train_steps, 0.1 * num_train_steps
-        )
+        optimizer = create_optimizer(args.learning_rate, 0, 0)
         model.compile(
             optimizer,
-            # loss=tfa.losses.SigmoidFocalCrossEntropy(
-            #     alpha=0.5,
-            #     gamma=2.0,
-            #     name="loss",
-            #     reduction=tf.keras.losses.Reduction.AUTO,
-            # ),
-            # loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
-            loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
+            loss=WeightedBinaryCrossEntropy(name="loss"),
             metrics=[
                 tf.keras.metrics.AUC(name="auc"),
                 tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
@@ -135,33 +81,24 @@ def main(args):
         )
         if tpu is None:
             model.run_eagerly = True
-
-    callbacks = get_callbacks(args)
-    train_history = model.fit(
-        train_dataset,
-        validation_data=val_dataset,
-        steps_per_epoch=4,
-        validation_steps=2,
-        callbacks=callbacks,
-        epochs=2,
-    )
+    model.load_weights(args.checkpoint)
+    test_history = model.evaluate(test_dataset, steps=2)
+    print(dict(zip(model.metrics_names, test_history)))
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(add_help=False)
 
+    parser.add_argument("--checkpoint", type=str)
     parser.add_argument("--model_name", type=str, default="PooledModel")
     parser.add_argument(
         "--dataset_name", type=str, default="TvTropesMovieSingleDataset"
     )
-    parser.add_argument("--offline", type=int, choices={0, 1}, default=0)
-    parser.add_argument("--dry_run", type=int, choices={0, 1}, default=0)
     parser.add_argument("--seed", type=int, default=44)
 
     parser.add_argument("--model_type", default="bert-base-uncased", type=str)
     parser.add_argument("--learning_rate", default=2e-6, type=float)
     parser.add_argument("--dropout", default=0.1, type=float)
-    parser.add_argument("--epochs", default=4, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--max_length", default=128, type=int)
     parser.add_argument("--max_sentences", default=5, type=int)
