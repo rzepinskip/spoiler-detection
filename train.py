@@ -138,14 +138,22 @@ def main(args):
             model.run_eagerly = True
 
     callbacks = get_callbacks(args)
-    train_history = model.fit(
-        train_dataset,
-        validation_data=val_dataset,
-        steps_per_epoch=4,
-        validation_steps=2,
-        callbacks=callbacks,
-        epochs=2,
-    )
+    if args.dry_run:
+        train_history = model.fit(
+            train_dataset,
+            validation_data=val_dataset,
+            steps_per_epoch=4,
+            validation_steps=2,
+            callbacks=callbacks,
+            epochs=2,
+        )
+    else:
+        train_history = model.fit(
+            train_dataset,
+            validation_data=val_dataset,
+            callbacks=callbacks,
+            epochs=args.epochs,
+        )
 
 
 if __name__ == "__main__":
