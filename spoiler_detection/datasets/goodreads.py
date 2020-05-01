@@ -6,6 +6,8 @@ import numpy as np
 import tensorflow as tf
 import transformers
 
+from ..feature_encoders import encode_as_distribution, encode_as_string
+
 DATA_SOURCES = {
     "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz",
     "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz",
@@ -33,18 +35,50 @@ class GoodreadsSingleDataset:
         self.max_length = hparams.max_length
 
     def get_dataset(self, dataset_type):
-        X, y = list(), list()
+        all_sentences, all_genres, all_labels = list(), list(), list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
                 genres = review_json["genres"]
                 sentences, labels = list(), list()
                 for label, sentence in review_json["review_sentences"]:
-                    X.append(sentence)
-                    y.append(float(label))
+                    all_sentences.append(sentence)
+                    all_genres.append(encode_as_distribution(genres))
+                    all_labels.append(float(label))
 
-        X = encode(X, self.tokenizer, self.max_length)
-        y = np.array(y)
+        X = {
+            "sentence": encode(all_sentences, self.tokenizer, self.max_length),
+            "genres": all_genres,
+        }
+        y = np.array(all_labels)
+        dataset = tf.data.Dataset.from_tensor_slices((X, y))
+        return dataset, y
+
+
+class GoodreadsSingleGenreAppendedDataset:
+    def __init__(self, hparams):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            hparams.model_type, use_fast=True
+        )
+        self.max_length = hparams.max_length
+
+    def get_dataset(self, dataset_type):
+        all_sentences, all_genres, all_labels = list(), list(), list()
+        with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
+            for line in file:
+                review_json = json.loads(line)
+                genres = review_json["genres"]
+                sentences, labels = list(), list()
+                for label, sentence in review_json["review_sentences"]:
+                    all_sentences.append(f"{sentence}[SEP]{encode_as_string(genres)}")
+                    all_genres.append(encode_as_distribution(genres))
+                    all_labels.append(float(label))
+
+        X = {
+            "sentence": encode(all_sentences, self.tokenizer, self.max_length),
+            "genres": all_genres,
+        }
+        y = np.array(all_labels)
         dataset = tf.data.Dataset.from_tensor_slices((X, y))
         return dataset, y
 
@@ -75,7 +109,6 @@ class GoodreadsSscDataset:
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
-                genres = review_json["genres"]
                 raw_sentences, raw_labels = list(), list()
                 for label, sentence in review_json["review_sentences"]:
                     raw_labels.append(float(label))

@@ -175,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--max_length", default=128, type=int)
     parser.add_argument("--max_sentences", default=5, type=int)
+    parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
     args = parser.parse_args()
 
     main(args)
