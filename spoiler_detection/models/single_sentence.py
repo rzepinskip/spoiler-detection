@@ -15,7 +15,7 @@ class SequenceModel(tf.keras.Model):
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
         attention_mask = tf.where(
-            tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
+            tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
         )
         sequence_output = self.transformer([input_ids, attention_mask], **kwargs)[0]
         cls_token = sequence_output[:, 0, :]
