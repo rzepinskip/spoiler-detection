@@ -103,9 +103,9 @@ class GoodreadsSingleDataset:
         writer.write(dataset)
 
     def get_dataset(self, dataset_type):
-        # file_path = f"gs://spoiler-detection/{self.get_file_name(dataset_type)}"
-        self.write_dataset(dataset_type)
-        file_path = f"./{self.get_file_name(dataset_type)}"
+        file_path = f"gs://spoiler-detection/{self.get_file_name(dataset_type)}"
+        # self.write_dataset(dataset_type)
+        # file_path = f"./{self.get_file_name(dataset_type)}"
 
         def read_tfrecord(serialized_example):
             feature_description = {
