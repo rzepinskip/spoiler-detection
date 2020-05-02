@@ -44,4 +44,5 @@ class TvTropesMovieSingleDataset:
         X = encode(X, self.tokenizer, self.max_length)
         y = np.array(y)
         dataset = tf.data.Dataset.from_tensor_slices((X, y))
-        return dataset, y
+        labels_count = {0: sum(y == 0), 1: sum(y == 1)}
+        return dataset, labels_count

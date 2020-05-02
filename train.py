@@ -17,6 +17,7 @@ from wandb.keras import WandbCallback
 from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
 from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
+    GoodreadsSingleGenreAppendedDataset,
     GoodreadsSscDataset,
     TvTropesMovieSingleDataset,
 )
@@ -30,6 +31,7 @@ MODELS = {
 
 DATASETS = {
     "GoodreadsSingleDataset": GoodreadsSingleDataset,
+    "GoodreadsSingleGenreAppendedDataset": GoodreadsSingleGenreAppendedDataset,
     "GoodreadsSscDataset": GoodreadsSscDataset,
     "TvTropesMovieSingleDataset": TvTropesMovieSingleDataset,
 }
@@ -90,7 +92,7 @@ def main(args):
         tf.tpu.experimental.initialize_tpu_system(tpu)
         strategy = tf.distribute.experimental.TPUStrategy(tpu)
 
-    train_dataset_raw, y_train = dataset.get_dataset("train")
+    train_dataset_raw, labels_count = dataset.get_dataset("train")
     val_dataset_raw, _ = dataset.get_dataset("val")
 
     train_dataset = (
@@ -104,9 +106,10 @@ def main(args):
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
 
-    num_train_steps = math.ceil(len(y_train) / args.batch_size) * args.epochs
-    neg_count, pos_count = (len(y_train[y_train == 0]), len(y_train[y_train == 1]))
-    pos_weight = neg_count / pos_count
+    num_train_steps = (
+        math.ceil((labels_count[0] + labels_count[1]) / args.batch_size) * args.epochs
+    )
+    pos_weight = labels_count[0] / labels_count[1]
 
     with strategy.scope():
         model = MODELS[args.model_name](hparams=args)

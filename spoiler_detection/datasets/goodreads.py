@@ -13,6 +13,7 @@ DATA_SOURCES = {
     "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz",
     "test": None,
 }
+LABELS_COUNTS = {0: 6834, 1: 29552}
 
 
 def encode(texts, tokenizer, max_length=512):
@@ -33,54 +34,121 @@ class GoodreadsSingleDataset:
             hparams.model_type, use_fast=True
         )
         self.max_length = hparams.max_length
+        self.model_group = hparams.model_type.split("-")[0]
 
-    def get_dataset(self, dataset_type):
-        all_sentences, all_genres, all_labels = list(), list(), list()
-        with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
-            for line in file:
-                review_json = json.loads(line)
-                genres = review_json["genres"]
-                sentences, labels = list(), list()
-                for label, sentence in review_json["review_sentences"]:
-                    all_sentences.append(sentence)
-                    all_genres.append(encode_as_distribution(genres))
-                    all_labels.append(float(label))
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSingleDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
 
-        X = {
-            "sentence": encode(all_sentences, self.tokenizer, self.max_length),
-            "genres": all_genres,
-        }
-        y = np.array(all_labels)
-        dataset = tf.data.Dataset.from_tensor_slices((X, y))
-        return dataset, y
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        sentences, labels = list(), list()
+        genres = review_json["genres"]
+        encoded_genres = encode_as_distribution(genres)
+        for label, sentence in review_json["review_sentences"]:
+            sentences.append(sentence)
+            labels.append(float(label))
+        input_ids = encode(sentences, self.tokenizer, self.max_length,)
 
+        return input_ids, [encoded_genres for _ in labels], labels
 
-class GoodreadsSingleGenreAppendedDataset:
-    def __init__(self, hparams):
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
-            hparams.model_type, use_fast=True
+    def write_dataset(self, dataset_type):
+        dataset = (
+            tf.data.TextLineDataset(
+                transformers.cached_path(DATA_SOURCES[dataset_type]),
+                compression_type="GZIP",
+            )
+            .map(
+                lambda x: tf.py_function(
+                    self.process, [x], [tf.int32, tf.float32, tf.float32]
+                ),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
+            .interleave(
+                lambda x, y, z: tf.data.Dataset.from_tensor_slices((x, y, z)),
+                cycle_length=1,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
         )
-        self.max_length = hparams.max_length
+
+        def serialize_example(input_ids, genres, label):
+            def _bytes_feature(value):
+                return tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[value.numpy()])
+                )
+
+            feature = {
+                "input_ids": _bytes_feature(tf.io.serialize_tensor(input_ids)),
+                "genres": _bytes_feature(tf.io.serialize_tensor(genres)),
+                "label": _bytes_feature(tf.io.serialize_tensor(label)),
+            }
+
+            example_proto = tf.train.Example(
+                features=tf.train.Features(feature=feature)
+            )
+            return example_proto.SerializeToString()
+
+        dataset = dataset.map(
+            lambda x, y, z: tf.py_function(serialize_example, [x, y, z], [tf.string])[
+                0
+            ],
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+
+        file_path = f"./{self.get_file_name(dataset_type)}"
+        writer = tf.data.experimental.TFRecordWriter(file_path, compression_type="GZIP")
+        writer.write(dataset)
 
     def get_dataset(self, dataset_type):
-        all_sentences, all_genres, all_labels = list(), list(), list()
-        with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
-            for line in file:
-                review_json = json.loads(line)
-                genres = review_json["genres"]
-                sentences, labels = list(), list()
-                for label, sentence in review_json["review_sentences"]:
-                    all_sentences.append(f"{sentence}[SEP]{encode_as_string(genres)}")
-                    all_genres.append(encode_as_distribution(genres))
-                    all_labels.append(float(label))
+        file_path = f"gs://spoiler-detection/{self.get_file_name(dataset_type)}"
+        # self.write_dataset(dataset_type)
+        # file_path = f"./{self.get_file_name(dataset_type)}"
 
-        X = {
-            "sentence": encode(all_sentences, self.tokenizer, self.max_length),
-            "genres": all_genres,
-        }
-        y = np.array(all_labels)
-        dataset = tf.data.Dataset.from_tensor_slices((X, y))
-        return dataset, y
+        def read_tfrecord(serialized_example):
+            feature_description = {
+                "input_ids": tf.io.FixedLenFeature([], tf.string),
+                "genres": tf.io.FixedLenFeature([], tf.string),
+                "label": tf.io.FixedLenFeature([], tf.string),
+            }
+
+            example = tf.io.parse_single_example(
+                serialized_example, feature_description
+            )
+            input_ids = tf.ensure_shape(
+                tf.io.parse_tensor(example["input_ids"], tf.int32), [self.max_length]
+            )
+            genres = tf.ensure_shape(
+                tf.io.parse_tensor(example["genres"], tf.float32), [10]
+            )
+            label = tf.ensure_shape(
+                tf.io.parse_tensor(example["label"], tf.float32), []
+            )
+
+            return {"input_ids": input_ids, "genres": genres}, label
+
+        dataset = tf.data.TFRecordDataset(file_path, compression_type="GZIP").map(
+            read_tfrecord
+        )
+
+        return dataset, LABELS_COUNTS
+
+
+class GoodreadsSingleGenreAppendedDataset(GoodreadsSingleDataset):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSingleGenreAppendedDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
+
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        genres = review_json["genres"]
+        sentences, labels = list(), list()
+        encoded_genres = encode_as_distribution(genres)
+        for label, sentence in review_json["review_sentences"]:
+            sentences.append(f"{sentence}[SEP]{encode_as_string(genres)}")
+            labels.append(float(label))
+        input_ids = encode(sentences, self.tokenizer, self.max_length,)
+        return input_ids, [encoded_genres for _ in labels], labels
 
 
 def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
@@ -105,7 +173,6 @@ class GoodreadsSscDataset:
 
     def get_dataset(self, dataset_type):
         X, y = list(), list()
-        y_true = list()
         with gzip.open(transformers.cached_path(DATA_SOURCES[dataset_type])) as file:
             for line in file:
                 review_json = json.loads(line)
@@ -120,12 +187,11 @@ class GoodreadsSscDataset:
                 ):
                     sentences.append("[SEP]".join(sentences_loop))
                     labels.append(labels_loop)
-                    y_true.extend(labels_loop)
 
-                output = encode(sentences, self.tokenizer, self.max_length,)
+                input_ids = encode(sentences, self.tokenizer, self.max_length,)
 
-                if any([x[self.max_length - 1] != 0 for x in output]):
-                    input_ids = np.array(output)
+                if any([x[self.max_length - 1] != 0 for x in input_ids]):
+                    input_ids = np.array(input_ids)
                     sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
                     labels_sums = [len(x) for x in labels]
                     for i in range(len(labels)):
@@ -136,13 +202,13 @@ class GoodreadsSscDataset:
                                 f"[#{i}] Truncating. Original:\n {sentences[i]}"
                             )
                             labels[i] = labels[i][:s]
-                indices = tf.where(output == self.sep_id)
+                indices = tf.where(input_ids == self.sep_id)
                 updates = [item for sublist in labels for item in sublist]
                 labels_scattered = tf.tensor_scatter_nd_update(
-                    tf.constant(-1.0, shape=tf.shape(output)), indices, updates
+                    tf.constant(-1.0, shape=tf.shape(input_ids)), indices, updates
                 )
-                X.extend(output)
+                X.extend(input_ids)
                 y.extend(tf.expand_dims(labels_scattered, -1))
 
         dataset = tf.data.Dataset.from_tensor_slices((np.array(X), y))
-        return dataset, np.array(y_true)
+        return dataset, LABELS_COUNTS

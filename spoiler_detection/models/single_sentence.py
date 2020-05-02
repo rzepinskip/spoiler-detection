@@ -12,7 +12,7 @@ class SequenceModel(tf.keras.Model):
         self.use_genres = hparams.use_genres
 
     def call(self, inputs, **kwargs):
-        input_ids = inputs["sentence"]
+        input_ids = inputs["input_ids"]
         attention_mask = tf.where(
             tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
         )
@@ -41,7 +41,7 @@ class PooledModel(tf.keras.Model):
         self.use_genres = hparams.use_genres
 
     def call(self, inputs, **kwargs):
-        input_ids = inputs["sentence"]
+        input_ids = inputs["input_ids"]
         attention_mask = tf.where(
             tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
         )
