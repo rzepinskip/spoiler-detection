@@ -130,7 +130,7 @@ class GoodreadsSingleDataset:
             return {"input_ids": input_ids, "genres": genres}, label
 
         dataset = tf.data.TFRecordDataset(file_path, compression_type="GZIP").map(
-            read_tfrecord
+            read_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
 
         return dataset, LABELS_COUNTS
