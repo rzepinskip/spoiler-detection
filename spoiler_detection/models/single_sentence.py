@@ -10,6 +10,7 @@ class SequenceModel(tf.keras.Model):
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
         self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
         self.use_genres = hparams.use_genres
+        self.genres_layer.build([10])
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
@@ -39,6 +40,7 @@ class PooledModel(tf.keras.Model):
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
         self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
         self.use_genres = hparams.use_genres
+        self.genres_layer.build([10])
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
