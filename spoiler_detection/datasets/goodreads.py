@@ -34,7 +34,11 @@ class GoodreadsSingleDataset:
             hparams.model_type, use_fast=True
         )
         self.max_length = hparams.max_length
-        self.model_group = hparams.model_type.split("-")[0]
+        model_group = hparams.model_type.split("-")[0]
+        if model_group == "bert":
+            name_split = hparams.model_type.split("-")
+            model_group = f"{name_split[0]}_{name_split[2]}"
+        self.model_group = model_group
 
     def get_file_name(self, dataset_type):
         return f"{GoodreadsSingleDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
