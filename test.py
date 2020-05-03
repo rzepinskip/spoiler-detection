@@ -59,9 +59,6 @@ def main(args):
         tf.data.experimental.AUTOTUNE
     )
 
-    # test_history = model.evaluate(test_dataset)
-    # dict(zip(model.metrics_names, test_history))
-
     with strategy.scope():
         model = MODELS[args.model_name](hparams=args)
         optimizer = create_optimizer(args.learning_rate, 0, 0)
@@ -79,9 +76,7 @@ def main(args):
                 tf.keras.metrics.FalseNegatives(name="fn"),
             ],
         )
-        if tpu is None:
-            model.run_eagerly = True
-    model.load_weights(args.checkpoint)
+    model.load_weights(args.checkpoint, by_name=True)
     test_history = model.evaluate(test_dataset, steps=2)
     print(dict(zip(model.metrics_names, test_history)))
 
