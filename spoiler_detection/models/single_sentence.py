@@ -8,9 +8,9 @@ class SequenceModel(tf.keras.Model):
         self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
-        self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
         self.use_genres = hparams.use_genres
-        self.genres_layer.build([10])
+        if hparams.use_genres:
+            self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
@@ -38,9 +38,9 @@ class PooledModel(tf.keras.Model):
         self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
-        self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
         self.use_genres = hparams.use_genres
-        self.genres_layer.build([10])
+        if hparams.use_genres:
+            self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
