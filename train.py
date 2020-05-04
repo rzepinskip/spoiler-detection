@@ -188,7 +188,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", default=0.1, type=float)
     parser.add_argument("--epochs", default=4, type=int)
     parser.add_argument("--batch_size", default=32, type=int)
-    parser.add_argument("--max_length", default=128, type=int)
+    parser.add_argument("--max_length", default=96, type=int)
     parser.add_argument("--max_sentences", default=5, type=int)
     parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
     parser.add_argument(

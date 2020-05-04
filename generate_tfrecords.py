@@ -15,7 +15,7 @@ for model_type in model_types:
         parser = ArgumentParser(add_help=False)
 
         parser.add_argument("--model_type", default=model_type, type=str)
-        parser.add_argument("--max_length", default=128, type=int)
+        parser.add_argument("--max_length", default=96, type=int)
         parser.add_argument("--max_sentences", default=5, type=int)
         args = parser.parse_args([])
 
