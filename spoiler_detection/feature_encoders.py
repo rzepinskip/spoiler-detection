@@ -6,12 +6,12 @@ encoding_dict = {
     "comics, graphic": 1,
     "fantasy, paranormal": 2,
     "fiction": 3,
-    "history, historical fiction, biography": 3,
-    "mystery, thriller, crime": 4,
-    "non-fiction": 5,
-    "poetry": 6,
-    "romance": 7,
-    "young-adult": 8,
+    "history, historical fiction, biography": 4,
+    "mystery, thriller, crime": 5,
+    "non-fiction": 6,
+    "poetry": 7,
+    "romance": 8,
+    "young-adult": 9,
 }
 
 
