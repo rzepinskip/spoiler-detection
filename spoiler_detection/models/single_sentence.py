@@ -3,11 +3,15 @@ import transformers
 
 
 class SequenceModel(tf.keras.Model):
-    def __init__(self, hparams):
+    def __init__(self, hparams, output_bias=None):
         super(SequenceModel, self).__init__()
         self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
-        self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
+        if output_bias is not None:
+            output_bias = tf.keras.initializers.Constant(output_bias)
+        self.classifier = tf.keras.layers.Dense(
+            1, activation="sigmoid", bias_initializer=output_bias
+        )
         self.use_genres = hparams.use_genres
         if hparams.use_genres:
             self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
@@ -33,11 +37,15 @@ class SequenceModel(tf.keras.Model):
 
 
 class PooledModel(tf.keras.Model):
-    def __init__(self, hparams):
+    def __init__(self, hparams, output_bias=None):
         super(PooledModel, self).__init__()
         self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
-        self.classifier = tf.keras.layers.Dense(1, activation="sigmoid")
+        if output_bias is not None:
+            output_bias = tf.keras.initializers.Constant(output_bias)
+        self.classifier = tf.keras.layers.Dense(
+            1, activation="sigmoid", bias_initializer=output_bias
+        )
         self.use_genres = hparams.use_genres
         if hparams.use_genres:
             self.genres_layer = tf.keras.layers.Dense(10, activation="relu")

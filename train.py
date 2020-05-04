@@ -109,23 +109,35 @@ def main(args):
     num_train_steps = (
         math.ceil((labels_count[0] + labels_count[1]) / args.batch_size) * args.epochs
     )
-    pos_weight = labels_count[0] / labels_count[1]
 
     with strategy.scope():
-        model = MODELS[args.model_name](hparams=args)
+        model = MODELS[args.model_name](
+            hparams=args, output_bias=np.log([labels_count[1] / labels_count[0]])
+        )
+
         optimizer = create_optimizer(
             args.learning_rate, num_train_steps, 0.1 * num_train_steps
         )
+
+        loss = (None,)
+        if args.loss == "bce":
+            loss = tf.keras.losses.BinaryCrossentropy(name="loss")
+        elif args.loss == "wbce":
+            pos_weight = labels_count[0] / labels_count[1]
+            loss = WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss")
+        elif args.loss == "focal":
+            loss = (
+                tfa.losses.SigmoidFocalCrossEntropy(
+                    alpha=0.25,
+                    gamma=2.0,
+                    name="loss",
+                    reduction=tf.keras.losses.Reduction.AUTO,
+                ),
+            )
+
         model.compile(
             optimizer,
-            # loss=tfa.losses.SigmoidFocalCrossEntropy(
-            #     alpha=0.5,
-            #     gamma=2.0,
-            #     name="loss",
-            #     reduction=tf.keras.losses.Reduction.AUTO,
-            # ),
-            # loss=tf.keras.losses.BinaryCrossentropy(name="loss"),
-            loss=WeightedBinaryCrossEntropy(pos_weight=pos_weight, name="loss"),
+            loss=loss,
             metrics=[
                 tf.keras.metrics.AUC(name="auc"),
                 tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
@@ -179,6 +191,9 @@ if __name__ == "__main__":
     parser.add_argument("--max_length", default=128, type=int)
     parser.add_argument("--max_sentences", default=5, type=int)
     parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
+    parser.add_argument(
+        "--loss", type=str, choices={"bce", "wbce", "focal"}, default="wbce"
+    )
     args = parser.parse_args()
 
     main(args)
