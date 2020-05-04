@@ -9,11 +9,11 @@ import transformers
 from ..feature_encoders import encode_as_distribution, encode_as_string
 
 DATA_SOURCES = {
-    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-train.json.gz",
-    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-timings-val.json.gz",
-    "test": None,
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
+    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
 }
-LABELS_COUNTS = {0: 29552, 1: 6834}
+LABELS_COUNTS = {0: 2110317, 1: 455921}
 
 
 def encode(texts, tokenizer, max_length=512):
