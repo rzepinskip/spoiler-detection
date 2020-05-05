@@ -96,7 +96,8 @@ def main(args):
     val_dataset_raw, _ = dataset.get_dataset("val")
 
     train_dataset = (
-        train_dataset_raw.shuffle(2048)
+        train_dataset_raw.prefetch(tf.data.experimental.AUTOTUNE)
+        .shuffle(1024, seed=args.seed, reshuffle_each_iteration=True)
         .batch(args.batch_size)
         .prefetch(tf.data.experimental.AUTOTUNE)
     )

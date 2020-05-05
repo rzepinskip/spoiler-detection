@@ -14,6 +14,7 @@ DATA_SOURCES = {
     "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
 }
 LABELS_COUNTS = {0: 2110317, 1: 455921}
+BUCKET = "gs://spoiler-detection/goodreads"
 
 
 def encode(texts, tokenizer, max_length=512):
@@ -103,7 +104,7 @@ class GoodreadsSingleDataset:
         writer.write(dataset)
 
     def get_dataset(self, dataset_type):
-        file_path = f"gs://spoiler-detection/{self.get_file_name(dataset_type)}"
+        file_path = f"{BUCKET}/{self.get_file_name(dataset_type)}"
         # self.write_dataset(dataset_type)
         # file_path = f"./{self.get_file_name(dataset_type)}"
 
