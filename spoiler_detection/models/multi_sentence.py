@@ -21,9 +21,9 @@ class SscModel(tf.keras.Model):
         )
 
     def call(self, inputs, **kwargs):
-        input_ids = inputs
+        input_ids = inputs["input_ids"]
         attention_mask = tf.where(
-            tf.equal(inputs, 0), tf.zeros_like(inputs), tf.ones_like(inputs)
+            tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
         )
         sequence_output = self.transformer([input_ids, attention_mask], **kwargs)[0]
         x = self.dropout(sequence_output, training=kwargs.get("training", False))
@@ -39,7 +39,7 @@ class SscModel(tf.keras.Model):
 
             mask = tf.not_equal(y, -1)
             y = tf.expand_dims(tf.boolean_mask(y, mask), 1)
-            y_pred = tf.expand_dims(tf.boolean_mask(y_pred, mask), 1)
+            y_pred = tf.boolean_mask(y_pred, mask)
 
             sample_weight = tf.ones_like(y_pred)
             loss = self.compiled_loss(
@@ -64,7 +64,7 @@ class SscModel(tf.keras.Model):
         y_pred = self(x, training=False)
         mask = tf.not_equal(y, -1)
         y = tf.expand_dims(tf.boolean_mask(y, mask), 1)
-        y_pred = tf.expand_dims(tf.boolean_mask(y_pred, mask), 1)
+        y_pred = tf.boolean_mask(y_pred, mask)
         self.compiled_loss(y, y_pred, sample_weight, regularization_losses=self.losses)
 
         self.compiled_metrics.update_state(y, y_pred, sample_weight)
