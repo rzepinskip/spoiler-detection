@@ -150,7 +150,9 @@ class GoodreadsSingleGenreAppendedDataset(GoodreadsSingleDataset):
         sentences, labels = list(), list()
         encoded_genres = encode_as_distribution(genres)
         for label, sentence in review_json["review_sentences"]:
-            sentences.append(f"{sentence}[SEP]{encode_as_string(genres)}")
+            sentences.append(
+                f"{sentence}[SEP]{encode_as_string(genres)}"
+            )  # TODO not always SEP!
             labels.append(float(label))
         input_ids = encode(sentences, self.tokenizer, self.max_length,)
         return input_ids, [encoded_genres for _ in labels], labels
@@ -174,8 +176,14 @@ class GoodreadsSscDataset:
         )
         self.max_length = hparams.max_length
         self.max_sentences = hparams.max_sentences
-        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
         model_group = hparams.model_type.split("-")[0]
+
+        if model_group not in ("bert", "albert", "electra"):
+            raise ValueError(
+                "This model works only for BERT-like input models with SEP and CLS tokens"
+            )
+
+        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
         if model_group == "bert":
             name_split = hparams.model_type.split("-")
             model_group = f"{name_split[0]}_{name_split[2]}"
@@ -215,7 +223,7 @@ class GoodreadsSscDataset:
         labels_scattered = tf.tensor_scatter_nd_update(
             tf.constant(-1.0, shape=tf.shape(input_ids)), indices, updates
         )
-        # return input_ids, tf.expand_dims(labels_scattered, -1)
+
         return input_ids, labels_scattered
 
     def write_dataset(self, dataset_type):
@@ -288,3 +296,61 @@ class GoodreadsSscDataset:
         )
 
         return dataset, LABELS_COUNTS
+
+
+class GoodreadsSscGenreAppendedDataset(GoodreadsSscDataset):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSscGenreAppendedDataset.__name__}-{self.model_group}-{self.max_length}-{self.max_sentences}-{dataset_type}.tf.gz"
+
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        raw_sentences, raw_labels = list(), list()
+        for label, sentence in review_json["review_sentences"]:
+            raw_labels.append(float(label))
+            raw_sentences.append(sentence)
+
+        genres = review_json["genres"]
+        genres_encoded = encode_as_string(genres)
+
+        sentences, labels = list(), list()
+        for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
+            raw_sentences, labels=raw_labels, max_sentences=self.max_sentences,
+        ):
+            sentences_sequence = f"[CLS]{'[SEP]'.join(sentences_loop)}[SEP]{genres_encoded}"  # omit final [SEP] on purpose
+            sentences.append(sentences_sequence)
+            labels.append(labels_loop)
+
+        def special_encode(texts, tokenizer, max_length=512):
+            input_ids = tokenizer.batch_encode_plus(
+                texts,
+                return_attention_masks=False,
+                return_token_type_ids=False,
+                pad_to_max_length=True,
+                max_length=max_length,
+                add_special_tokens=False,
+            )["input_ids"]
+
+            return np.array(input_ids)
+
+        input_ids = special_encode(sentences, self.tokenizer, self.max_length,)
+
+        if any([x[self.max_length - 1] != 0 for x in input_ids]):
+            input_ids = np.array(input_ids)
+            sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
+            labels_sums = [len(x) for x in labels]
+            for i in range(len(labels)):
+                s = sentences_sums[i]
+                l = labels_sums[i]
+                if s != l:
+                    logging.debug(f"[#{i}] Truncating. Original:\n {sentences[i]}")
+                    labels[i] = labels[i][:s]
+        indices = tf.where(input_ids == self.sep_id)
+        updates = [item for sublist in labels for item in sublist]
+        labels_scattered = tf.tensor_scatter_nd_update(
+            tf.constant(-1.0, shape=tf.shape(input_ids)), indices, updates
+        )
+
+        return input_ids, labels_scattered
