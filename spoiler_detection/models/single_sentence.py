@@ -2,10 +2,17 @@ import tensorflow as tf
 import transformers
 
 
+def get_model(model_type):
+    if "electra" in model_type:
+        return transformers.TFElectraModel.from_pretrained(model_type)
+
+    return transformers.TFAutoModel.from_pretrained(model_type)
+
+
 class SequenceModel(tf.keras.Model):
     def __init__(self, hparams, output_bias=None):
         super(SequenceModel, self).__init__()
-        self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
+        self.transformer = get_model(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
@@ -39,7 +46,7 @@ class SequenceModel(tf.keras.Model):
 class PooledModel(tf.keras.Model):
     def __init__(self, hparams, output_bias=None):
         super(PooledModel, self).__init__()
-        self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
+        self.transformer = get_model(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
