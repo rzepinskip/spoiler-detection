@@ -29,17 +29,27 @@ def encode(texts, tokenizer, max_length=512):
     return np.array(input_ids)
 
 
+def get_model_group(model_type):
+    if model_type.startswith("bert"):
+        name_split = model_type.split("-")
+        return f"{name_split[0]}_{name_split[2]}"
+
+    model_group = model_type.split("-")[0]
+
+    dash_sep = model_type.find("/")
+    if dash_sep:
+        model_group = model_group[dash_sep + 1 :]
+
+    return model_group
+
+
 class GoodreadsSingleDataset:
     def __init__(self, hparams):
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             hparams.model_type, use_fast=True
         )
         self.max_length = hparams.max_length
-        model_group = hparams.model_type.split("-")[0]
-        if model_group == "bert":
-            name_split = hparams.model_type.split("-")
-            model_group = f"{name_split[0]}_{name_split[2]}"
-        self.model_group = model_group
+        self.model_group = get_model_group(hparams.model_type)
 
     def get_file_name(self, dataset_type):
         return f"{GoodreadsSingleDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
@@ -176,18 +186,13 @@ class GoodreadsSscDataset:
         )
         self.max_length = hparams.max_length
         self.max_sentences = hparams.max_sentences
-        model_group = hparams.model_type.split("-")[0]
+        self.model_group = get_model_group(hparams.model_type)
+        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
 
-        if model_group not in ("bert", "albert", "electra"):
+        if self.model_group not in ("bert", "albert", "electra"):
             raise ValueError(
                 "This model works only for BERT-like input models with SEP and CLS tokens"
             )
-
-        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
-        if model_group == "bert":
-            name_split = hparams.model_type.split("-")
-            model_group = f"{name_split[0]}_{name_split[2]}"
-        self.model_group = model_group
 
     def get_file_name(self, dataset_type):
         return f"{GoodreadsSscDataset.__name__}-{self.model_group}-{self.max_length}-{self.max_sentences}-{dataset_type}.tf.gz"
