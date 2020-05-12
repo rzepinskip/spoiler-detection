@@ -17,7 +17,7 @@ class SscModel(tf.keras.Model):
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
         self.classifier = tf.keras.layers.Dense(
-            1, activation="sigmoid", bias_initializer=output_bias
+            1, activation="sigmoid", bias_initializer=output_bias, name="final"
         )
 
     def call(self, inputs, **kwargs):

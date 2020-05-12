@@ -60,11 +60,27 @@ def main(args):
     )
 
     with strategy.scope():
-        model = MODELS[args.model_name](hparams=args)
+        model = MODELS[args.model_name](hparams=args, output_bias=0)
+
         optimizer = create_optimizer(args.learning_rate, 0, 0)
+        loss = (None,)
+        if args.loss == "bce":
+            loss = tf.keras.losses.BinaryCrossentropy(name="loss")
+        elif args.loss == "wbce":
+            loss = WeightedBinaryCrossEntropy(pos_weight=1, name="loss")
+        elif args.loss == "focal":
+            loss = (
+                tfa.losses.SigmoidFocalCrossEntropy(
+                    alpha=0.25,
+                    gamma=2.0,
+                    name="loss",
+                    reduction=tf.keras.losses.Reduction.AUTO,
+                ),
+            )
+
         model.compile(
             optimizer,
-            loss=WeightedBinaryCrossEntropy(name="loss"),
+            loss=loss,
             metrics=[
                 tf.keras.metrics.AUC(name="auc"),
                 tf.keras.metrics.AUC(name="pr_auc", curve="PR"),
@@ -76,8 +92,9 @@ def main(args):
                 tf.keras.metrics.FalseNegatives(name="fn"),
             ],
         )
+    model.call(list(test_dataset.take(1))[0][0])  # force model build
     model.load_weights(args.checkpoint, by_name=True)
-    test_history = model.evaluate(test_dataset, steps=2)
+    test_history = model.evaluate(test_dataset)
     print(dict(zip(model.metrics_names, test_history)))
 
 
@@ -97,6 +114,10 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--max_length", default=128, type=int)
     parser.add_argument("--max_sentences", default=5, type=int)
+    parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
+    parser.add_argument(
+        "--loss", type=str, choices={"bce", "wbce", "focal"}, default="wbce"
+    )
     args = parser.parse_args()
 
     main(args)

@@ -17,11 +17,13 @@ class SequenceModel(tf.keras.Model):
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
         self.classifier = tf.keras.layers.Dense(
-            1, activation="sigmoid", bias_initializer=output_bias
+            1, activation="sigmoid", bias_initializer=output_bias, name="final"
         )
         self.use_genres = hparams.use_genres
         if hparams.use_genres:
-            self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
+            self.genres_layer = tf.keras.layers.Dense(
+                10, activation="relu", name="genre"
+            )
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
@@ -51,11 +53,13 @@ class PooledModel(tf.keras.Model):
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
         self.classifier = tf.keras.layers.Dense(
-            1, activation="sigmoid", bias_initializer=output_bias
+            1, activation="sigmoid", bias_initializer=output_bias, name="final"
         )
         self.use_genres = hparams.use_genres
         if hparams.use_genres:
-            self.genres_layer = tf.keras.layers.Dense(10, activation="relu")
+            self.genres_layer = tf.keras.layers.Dense(
+                10, activation="relu", name="genre"
+            )
 
     def call(self, inputs, **kwargs):
         input_ids = inputs["input_ids"]
