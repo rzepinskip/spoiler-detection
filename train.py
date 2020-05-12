@@ -98,11 +98,11 @@ def main(args):
     train_dataset = (
         train_dataset_raw.prefetch(tf.data.experimental.AUTOTUNE)
         .shuffle(1024, seed=args.seed, reshuffle_each_iteration=True)
-        .batch(args.batch_size, drop_remainder=True)
+        .batch(args.batch_size)
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
     val_dataset = (
-        val_dataset_raw.batch(args.batch_size, drop_remainder=True)
+        val_dataset_raw.batch(args.batch_size)
         .cache()
         .prefetch(tf.data.experimental.AUTOTUNE)
     )
