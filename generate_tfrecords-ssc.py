@@ -7,12 +7,10 @@ from spoiler_detection.datasets import (
     GoodreadsSscDataset,
 )
 
-model_types = [
-    "roberta-base",
-]
-dataset_classes = [GoodreadsSingleGenreAppendedDataset]
-max_sentences_limits = [5]
-max_length_limits = [128]
+model_types = ["bert-base-uncased"]
+dataset_classes = [GoodreadsSscDataset]
+max_sentences_limits = [3, 7]
+max_length_limits = [512]
 
 for model_type in model_types:
     for dataset_class in dataset_classes:

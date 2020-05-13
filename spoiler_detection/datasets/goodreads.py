@@ -116,7 +116,7 @@ class GoodreadsSingleDataset:
     def get_dataset(self, dataset_type):
         file_path = f"{BUCKET}/{self.get_file_name(dataset_type)}"
         # self.write_dataset(dataset_type)
-        # file_path = f"./{self.get_file_name(dataset_type)}"
+        file_path = f"./{self.get_file_name(dataset_type)}"
 
         def read_tfrecord(serialized_example):
             feature_description = {
@@ -158,14 +158,14 @@ class GoodreadsSingleGenreAppendedDataset(GoodreadsSingleDataset):
         review_json = json.loads(line.numpy())
         genres = review_json["genres"]
         sentences, labels = list(), list()
-        encoded_genres = encode_as_distribution(genres)
+        distribution_encoded_genres = encode_as_distribution(genres)
+        string_encoded_genres = encode_as_string(genres)
         for label, sentence in review_json["review_sentences"]:
-            sentences.append(
-                f"{sentence}[SEP]{encode_as_string(genres)}"
-            )  # TODO not always SEP!
+            sentences.append(f"{sentence}[SEP]{string_encoded_genres}")
             labels.append(float(label))
+
         input_ids = encode(sentences, self.tokenizer, self.max_length,)
-        return input_ids, [encoded_genres for _ in labels], labels
+        return input_ids, [distribution_encoded_genres for _ in labels], labels
 
 
 def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
