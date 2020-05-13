@@ -189,7 +189,7 @@ class GoodreadsSscDataset:
         self.model_group = get_model_group(hparams.model_type)
         self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
 
-        if self.model_group not in ("bert", "albert", "electra"):
+        if self.model_group not in ("bert_cased", "bert_uncased", "albert", "electra"):
             raise ValueError(
                 "This model works only for BERT-like input models with SEP and CLS tokens"
             )
