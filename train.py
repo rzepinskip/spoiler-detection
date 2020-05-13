@@ -15,13 +15,7 @@ from tqdm import tqdm
 from wandb.keras import WandbCallback
 
 from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
-from spoiler_detection.datasets import (
-    GoodreadsSingleDataset,
-    GoodreadsSingleGenreAppendedDataset,
-    GoodreadsSscDataset,
-    GoodreadsSscGenreAppendedDataset,
-    TvTropesMovieSingleDataset,
-)
+from spoiler_detection.datasets import GoodreadsSingleGenreAppendedDataset
 from spoiler_detection.models import PooledModel, SequenceModel, SscModel
 
 MODELS = {
@@ -31,11 +25,7 @@ MODELS = {
 }
 
 DATASETS = {
-    "GoodreadsSingleDataset": GoodreadsSingleDataset,
     "GoodreadsSingleGenreAppendedDataset": GoodreadsSingleGenreAppendedDataset,
-    "GoodreadsSscDataset": GoodreadsSscDataset,
-    "GoodreadsSscGenreAppendedDataset": GoodreadsSscGenreAppendedDataset,
-    "TvTropesMovieSingleDataset": TvTropesMovieSingleDataset,
 }
 
 
@@ -113,6 +103,9 @@ def main(args):
         math.ceil((labels_count[0] + labels_count[1]) / args.batch_size) * args.epochs
     )
 
+    tokenizer = transformers.AutoTokenizer.from_pretrained("roberta-base")
+    x = list(val_dataset_raw.take(1))
+    tokenizer.decode(x[0][0]["input_ids"])
     with strategy.scope():
         model = MODELS[args.model_name](
             hparams=args, output_bias=np.log([labels_count[1] / labels_count[0]])
@@ -156,14 +149,14 @@ def main(args):
             model.run_eagerly = True
 
     callbacks = get_callbacks(args)
-    if args.dry_run:
+    if args.steps:
         train_history = model.fit(
             train_dataset,
             validation_data=val_dataset,
-            steps_per_epoch=4,
-            validation_steps=2,
+            steps_per_epoch=args.steps,
+            validation_steps=200,
             callbacks=callbacks,
-            epochs=2,
+            epochs=args.epochs,
         )
     else:
         train_history = model.fit(
@@ -197,6 +190,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--loss", type=str, choices={"bce", "wbce", "focal"}, default="wbce"
     )
+    parser.add_argument("--prefix", type=str)
+    parser.add_argument("--steps", type=int, default=None)
     args = parser.parse_args()
 
     main(args)
