@@ -8,11 +8,18 @@ from tensorflow.python.keras.mixed_precision.experimental import (
 )
 
 
+def get_model(model_type):
+    if "electra" in model_type:
+        return transformers.TFElectraModel.from_pretrained(model_type)
+
+    return transformers.TFAutoModel.from_pretrained(model_type)
+
+
 # Adapted from https://github.com/tensorflow/tensorflow/blob/1381fc8e15e22402417b98e3881dfd409998daea/tensorflow/python/keras/engine/training.py#L540
 class SscModel(tf.keras.Model):
     def __init__(self, hparams, output_bias=None):
         super(SscModel, self).__init__()
-        self.transformer = transformers.TFAutoModel.from_pretrained(hparams.model_type)
+        self.transformer = get_model(hparams.model_type)
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
