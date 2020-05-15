@@ -17,7 +17,10 @@ from wandb.keras import WandbCallback
 from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
 from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
+    GoodreadsSingleGenreAppendedDataset,
     GoodreadsSscDataset,
+    GoodreadsSscGenreAppendedDataset,
+    TvTropesBookSingleDataset,
     TvTropesMovieSingleDataset,
 )
 from spoiler_detection.models import PooledModel, SequenceModel, SscModel
@@ -30,8 +33,11 @@ MODELS = {
 
 DATASETS = {
     "GoodreadsSingleDataset": GoodreadsSingleDataset,
+    "GoodreadsSingleGenreAppendedDataset": GoodreadsSingleGenreAppendedDataset,
     "GoodreadsSscDataset": GoodreadsSscDataset,
+    "GoodreadsSscGenreAppendedDataset": GoodreadsSscGenreAppendedDataset,
     "TvTropesMovieSingleDataset": TvTropesMovieSingleDataset,
+    "TvTropesBookSingleDataset": TvTropesBookSingleDataset,
 }
 
 
