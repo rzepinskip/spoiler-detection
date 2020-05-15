@@ -31,18 +31,16 @@ class SequenceModel(tf.keras.Model):
             tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
         )
         sequence_output = self.transformer([input_ids, attention_mask], **kwargs)[0]
-        cls_token = sequence_output[:, 0, :]
+        x = sequence_output[:, 0, :]  # cls_token
 
         if self.use_genres:
             genres = inputs["genres"]
             genres_output = self.genres_layer(genres)
-            x = tf.concat([cls_token, genres_output], -1)
-        else:
-            x = cls_token
+            x = tf.concat([x, genres_output], -1)
 
-        x = self.dropout(cls_token, training=kwargs.get("training", False))
-        out = self.classifier(x)
-        return out
+        x = self.dropout(x, training=kwargs.get("training", False))
+        x = self.classifier(x)
+        return x
 
 
 class PooledModel(tf.keras.Model):
@@ -67,14 +65,13 @@ class PooledModel(tf.keras.Model):
             tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
         )
         pooled_output = self.transformer([input_ids, attention_mask], **kwargs)[1]
+        x = pooled_output
 
         if self.use_genres:
             genres = inputs["genres"]
             genres_output = self.genres_layer(genres)
-            x = tf.concat([pooled_output, genres_output], -1)
-        else:
-            x = pooled_output
+            x = tf.concat([x, genres_output], -1)
 
         x = self.dropout(x, training=kwargs.get("training", False))
-        out = self.classifier(x)
-        return out
+        x = self.classifier(x)
+        return x
