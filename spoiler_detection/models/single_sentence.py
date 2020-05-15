@@ -16,6 +16,9 @@ class SequenceModel(tf.keras.Model):
         self.dropout = tf.keras.layers.Dropout(hparams.dropout)
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
+        self.dense = tf.keras.layers.Dense(
+            self.transformer.config.hidden_size, activation="tanh", name="feedforward"
+        )
         self.classifier = tf.keras.layers.Dense(
             1, activation="sigmoid", bias_initializer=output_bias, name="final"
         )
@@ -32,6 +35,8 @@ class SequenceModel(tf.keras.Model):
         )
         sequence_output = self.transformer([input_ids, attention_mask], **kwargs)[0]
         x = sequence_output[:, 0, :]  # cls_token
+        x = self.dropout(x, training=kwargs.get("training", False))
+        x = self.dense(x)
 
         if self.use_genres:
             genres = inputs["genres"]
