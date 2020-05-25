@@ -9,12 +9,12 @@ import transformers
 from ..feature_encoders import encode_as_distribution, encode_as_string
 
 DATA_SOURCES = {
-    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
-    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
-    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-train.json.gz",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-val.json.gz",
+    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads-test.json.gz",
 }
-LABELS_COUNTS = {0: 2110317, 1: 455921}
-BUCKET = "gs://spoiler-detection/goodreads"
+LABELS_COUNTS = {0: 13683402, 1: 456764}
+BUCKET = "gs://spoiler-detection/full"
 
 
 def encode(texts, tokenizer, max_length=512):
@@ -212,17 +212,20 @@ class GoodreadsSscDataset:
             labels.append(labels_loop)
 
         input_ids = encode(sentences, self.tokenizer, self.max_length,)
+        try:
+            if any([x[self.max_length - 1] != 0 for x in input_ids]):
+                input_ids = np.array(input_ids)
+                sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
+                labels_sums = [len(x) for x in labels]
+                for i in range(len(labels)):
+                    s = sentences_sums[i]
+                    l = labels_sums[i]
+                    if s != l:
+                        logging.debug(f"[#{i}] Truncating. Original:\n {sentences[i]}")
+                        labels[i] = labels[i][:s]
+        except IndexError as e:
+            pass
 
-        if any([x[self.max_length - 1] != 0 for x in input_ids]):
-            input_ids = np.array(input_ids)
-            sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
-            labels_sums = [len(x) for x in labels]
-            for i in range(len(labels)):
-                s = sentences_sums[i]
-                l = labels_sums[i]
-                if s != l:
-                    logging.debug(f"[#{i}] Truncating. Original:\n {sentences[i]}")
-                    labels[i] = labels[i][:s]
         indices = tf.where(input_ids == self.sep_id)
         updates = [item for sublist in labels for item in sublist]
         labels_scattered = tf.tensor_scatter_nd_update(

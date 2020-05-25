@@ -5,12 +5,13 @@ from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
     GoodreadsSingleGenreAppendedDataset,
     GoodreadsSscDataset,
+    GoodreadsSscGenreAppendedDataset,
 )
 
 model_types = ["google/electra-base-discriminator"]
-dataset_classes = [GoodreadsSingleGenreAppendedDataset]
+dataset_classes = [GoodreadsSscGenreAppendedDataset]
 max_sentences_limits = [5]
-max_length_limits = [96]
+max_length_limits = [512]
 
 for model_type in model_types:
     for dataset_class in dataset_classes:
