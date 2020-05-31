@@ -1,11 +1,8 @@
 ```
-python train.py --model_name PretrainedSingleSentenceModel --dataset_name GoodreadsSingleSentenceDataset --batch_size 2 --dry_run 1
+python train.py --model_name PooledModel --dataset_name GoodreadsSingleDataset --batch_size 2 --dry_run 1
+python train.py --model_name PooledModel --dataset_name TvTropesMovieSingleDataset --batch_size 2 --dry_run 1
 ```
 
 ```
-python train.py --model_name PretrainedSingleSentenceModel --dataset_name GoodreadsSingleSentenceDataset --tpu_cores 8
-```
-
-```
-python train.py --model_name PretrainedSingleSentenceModel --dataset_name GoodreadsSingleSentenceDataset --tpu_cores 8 --run_id 22cop5wx
+python test.py --model_name PooledModel --dataset_name TvTropesMovieSingleDataset --batch_size 2 --checkpoint "./checkpoint.tf"
 ```

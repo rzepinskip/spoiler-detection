@@ -1,224 +1,361 @@
 import gzip
-import itertools
 import json
 import logging
-from functools import partial
 
-import torch
-from torch import tensor
-from torch.utils.data import DataLoader
-from transformers import cached_path
+import numpy as np
+import tensorflow as tf
+import transformers
 
-from spoiler_detection.datasets.base_dataset import BaseDataset, ListDataset
-from spoiler_detection.datasets.datasets_maps import get_goodreads_map
-from spoiler_detection.datasets.utils import enforce_max_sent_per_example, pad_sequence
-from spoiler_detection.feature_encoders import encode_genre
+from ..feature_encoders import encode_as_distribution, encode_as_string
+
+DATA_SOURCES = {
+    "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
+    "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-val.json.gz",
+    "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-test.json.gz",
+}
+LABELS_COUNTS = {0: 2110317, 1: 455921}
+BUCKET = "gs://spoiler-detection/goodreads"
 
 
-class GoodreadsSingleSentenceDataset(BaseDataset):
+def encode(texts, tokenizer, max_length=512):
+    input_ids = tokenizer.batch_encode_plus(
+        texts,
+        return_attention_masks=False,
+        return_token_type_ids=False,
+        pad_to_max_length=True,
+        max_length=max_length,
+    )["input_ids"]
+
+    return np.array(input_ids)
+
+
+def get_model_group(model_type):
+    if model_type.startswith("bert"):
+        name_split = model_type.split("-")
+        return f"{name_split[0]}_{name_split[2]}"
+
+    model_group = model_type.split("-")[0]
+
+    dash_sep = model_type.find("/")
+    if dash_sep:
+        model_group = model_group[dash_sep + 1 :]
+
+    return model_group
+
+
+class GoodreadsSingleDataset:
     def __init__(self, hparams):
-        super().__init__()
-        self.hparams = hparams
-
-    def prepare_sample(self, tokenizer, samples):
-        sentences = [x["sentence"] for x in samples]
-        labels = [x["label"] for x in samples]
-        genres = [encode_genre(x["genre"]) for x in samples]
-
-        output = tokenizer.batch_encode_plus(
-            sentences, max_length=self.hparams.max_length, pad_to_max_length=True
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            hparams.model_type, use_fast=True
         )
-        return (
-            tensor(output["input_ids"]),
-            tensor(output["attention_mask"]),
-            tensor(output["token_type_ids"]),
-            tensor(genres),
-            tensor(labels),
-        )
+        self.max_length = hparams.max_length
+        self.model_group = get_model_group(hparams.model_type)
 
-    def get_dataloader(self, dataset_type, tokenizer, batch_size):
-        data = []
-        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
-            for line in file:
-                review_json = json.loads(line)
-                genres = review_json["genres"]
-                for label, sentence in review_json["review_sentences"]:
-                    data.append({"label": label, "sentence": sentence, "genre": genres})
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSingleDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
 
-        dataset = ListDataset(data)
-        return DataLoader(
-            dataset,
-            num_workers=self.hparams.num_workers,
-            collate_fn=partial(self.prepare_sample, tokenizer),
-            batch_size=batch_size,
-            shuffle=True if dataset_type == "train" else False,
-            drop_last=True,
-        )
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        sentences, labels = list(), list()
+        genres = review_json["genres"]
+        encoded_genres = encode_as_distribution(genres)
+        for label, sentence in review_json["review_sentences"]:
+            sentences.append(sentence)
+            labels.append(float(label))
+        input_ids = encode(sentences, self.tokenizer, self.max_length,)
 
+        return input_ids, [encoded_genres for _ in labels], labels
 
-class GoodreadsMultiSentenceDataset(BaseDataset):
-    def __init__(self, hparams):
-        super().__init__()
-        self.hparams = hparams
-
-    def prepare_sample(self, tokenizer, samples):
-        genres = [x["genre"] for x in samples]
-        encoded_sentences = [
-            tokenizer.batch_encode_plus(
-                s["sentences"],
-                max_length=self.hparams.max_length,
-                pad_to_max_length=True,
+    def write_dataset(self, dataset_type):
+        dataset = (
+            tf.data.TextLineDataset(
+                transformers.cached_path(DATA_SOURCES[dataset_type]),
+                compression_type="GZIP",
             )
-            for s in samples
-        ]
-
-        return (
-            pad_sequence(
-                [tensor(es["input_ids"]) for es in encoded_sentences],
-                padding_value=0,
-                max_length=self.hparams.max_sent_per_example,
-            ),
-            pad_sequence(
-                [tensor(es["attention_mask"]) for es in encoded_sentences],
-                padding_value=False,
-                max_length=self.hparams.max_sent_per_example,
-            ),
-            pad_sequence(
-                [tensor(es["token_type_ids"]) for es in encoded_sentences],
-                padding_value=0,
-                max_length=self.hparams.max_sent_per_example,
-            ),
-            tensor(genres),
-            pad_sequence(
-                [tensor(x["labels"]) for x in samples],
-                max_length=self.hparams.max_sent_per_example,
-            ),
-        )
-
-    def get_dataloader(self, dataset_type, tokenizer, batch_size):
-        data = []
-        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
-            for line in file:
-                review_json = json.loads(line)
-                genres = review_json["genres"]
-                sentences, labels = list(), list()
-                for label, sentence in review_json["review_sentences"]:
-                    labels.append(label)
-                    sentences.append(sentence)
-
-                for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
-                    sentences,
-                    labels=labels,
-                    max_sentences=self.hparams.max_sent_per_example,
-                ):
-                    data.append(
-                        {
-                            "labels": labels_loop,
-                            "sentences": sentences_loop,
-                            "genre": encode_genre(genres),
-                        }
-                    )
-
-        dataset = ListDataset(data)
-        return DataLoader(
-            dataset,
-            num_workers=self.hparams.num_workers,
-            collate_fn=partial(self.prepare_sample, tokenizer),
-            batch_size=batch_size,
-            shuffle=True if dataset_type == "train" else False,
-            drop_last=True,
-        )
-
-    @classmethod
-    def add_dataset_specific_args(cls, parent_parser):
-        parser = BaseDataset.add_dataset_specific_args(parent_parser)
-        parser.add_argument("--max_sent_per_example", type=int, default=5)
-        return parser
-
-
-class GoodreadsSscDataset(BaseDataset):
-    def __init__(self, hparams):
-        super().__init__()
-        self.hparams = hparams
-
-    def prepare_sample(self, tokenizer, samples):
-        sentences = ["[SEP]".join(x["sentences"]) for x in samples]
-
-        output = tokenizer.batch_encode_plus(
-            sentences,
-            max_length=self.hparams.max_length,
-            pad_to_max_length=True,
-            return_overflowing_tokens=True,
-        )
-        input_ids = tensor(output["input_ids"])
-
-        if "num_truncated_tokens" in output and output["num_truncated_tokens"] != 0:
-            sentences_sums = torch.sum(
-                input_ids == tokenizer._convert_token_to_id("[SEP]"), dim=1
+            .map(
+                lambda x: tf.py_function(
+                    self.process, [x], [tf.int32, tf.float32, tf.float32]
+                ),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
             )
-            labels_sums = tensor([len(x["labels"]) for x in samples])
-            for i in range(len(samples)):
+            .interleave(
+                lambda x, y, z: tf.data.Dataset.from_tensor_slices((x, y, z)),
+                cycle_length=1,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
+        )
+
+        def serialize_example(input_ids, genres, label):
+            def _bytes_feature(value):
+                return tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[value.numpy()])
+                )
+
+            feature = {
+                "input_ids": _bytes_feature(tf.io.serialize_tensor(input_ids)),
+                "genres": _bytes_feature(tf.io.serialize_tensor(genres)),
+                "label": _bytes_feature(tf.io.serialize_tensor(label)),
+            }
+
+            example_proto = tf.train.Example(
+                features=tf.train.Features(feature=feature)
+            )
+            return example_proto.SerializeToString()
+
+        dataset = dataset.map(
+            lambda x, y, z: tf.py_function(serialize_example, [x, y, z], [tf.string])[
+                0
+            ],
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+
+        file_path = f"./{self.get_file_name(dataset_type)}"
+        writer = tf.data.experimental.TFRecordWriter(file_path, compression_type="GZIP")
+        writer.write(dataset)
+
+    def get_dataset(self, dataset_type):
+        file_path = f"{BUCKET}/{self.get_file_name(dataset_type)}"
+        # self.write_dataset(dataset_type)
+        # file_path = f"./{self.get_file_name(dataset_type)}"
+
+        def read_tfrecord(serialized_example):
+            feature_description = {
+                "input_ids": tf.io.FixedLenFeature([], tf.string),
+                "genres": tf.io.FixedLenFeature([], tf.string),
+                "label": tf.io.FixedLenFeature([], tf.string),
+            }
+
+            example = tf.io.parse_single_example(
+                serialized_example, feature_description
+            )
+            input_ids = tf.ensure_shape(
+                tf.io.parse_tensor(example["input_ids"], tf.int32), [self.max_length]
+            )
+            genres = tf.ensure_shape(
+                tf.io.parse_tensor(example["genres"], tf.float32), [10]
+            )
+            label = tf.ensure_shape(
+                tf.io.parse_tensor(example["label"], tf.float32), []
+            )
+
+            return {"input_ids": input_ids, "genres": genres}, label
+
+        dataset = tf.data.TFRecordDataset(file_path, compression_type="GZIP").map(
+            read_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        )
+
+        return dataset, LABELS_COUNTS
+
+
+class GoodreadsSingleGenreAppendedDataset(GoodreadsSingleDataset):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSingleGenreAppendedDataset.__name__}-{self.model_group}-{self.max_length}-{dataset_type}.tf.gz"
+
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        genres = review_json["genres"]
+        sentences, labels = list(), list()
+        distribution_encoded_genres = encode_as_distribution(genres)
+        string_encoded_genres = encode_as_string(genres)
+        for label, sentence in review_json["review_sentences"]:
+            sentences.append((sentence, string_encoded_genres))
+            labels.append(float(label))
+
+        input_ids = encode(sentences, self.tokenizer, self.max_length,)
+        return input_ids, [distribution_encoded_genres for _ in labels], labels
+
+
+def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
+    assert len(sentences) == len(labels)
+
+    chunks = (
+        len(sentences) // max_sentences
+        if len(sentences) % max_sentences == 0
+        else len(sentences) // max_sentences + 1
+    )
+    return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
+
+
+class GoodreadsSscDataset:
+    def __init__(self, hparams):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            hparams.model_type, use_fast=True
+        )
+        self.max_length = hparams.max_length
+        self.max_sentences = hparams.max_sentences
+        self.model_group = get_model_group(hparams.model_type)
+        self.sep_id = self.tokenizer.convert_tokens_to_ids(["[SEP]"])[0]
+
+        if self.model_group not in ("bert_cased", "bert_uncased", "albert", "electra"):
+            raise ValueError(
+                "This model works only for BERT-like input models with SEP and CLS tokens"
+            )
+
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSscDataset.__name__}-{self.model_group}-{self.max_length}-{self.max_sentences}-{dataset_type}.tf.gz"
+
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        raw_sentences, raw_labels = list(), list()
+        for label, sentence in review_json["review_sentences"]:
+            raw_labels.append(float(label))
+            raw_sentences.append(sentence)
+
+        sentences, labels = list(), list()
+        for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
+            raw_sentences, labels=raw_labels, max_sentences=self.max_sentences,
+        ):
+            sentences.append("[SEP]".join(sentences_loop))
+            labels.append(labels_loop)
+
+        input_ids = encode(sentences, self.tokenizer, self.max_length,)
+
+        if any([x[self.max_length - 1] != 0 for x in input_ids]):
+            input_ids = np.array(input_ids)
+            sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
+            labels_sums = [len(x) for x in labels]
+            for i in range(len(labels)):
                 s = sentences_sums[i]
                 l = labels_sums[i]
                 if s != l:
-                    logging.debug(
-                        f"\t Sentence #{i} is too long. Truncating. Original:\n {sentences[i]}"
-                    )
-                    samples[i]["labels"] = samples[i]["labels"][:s]
-
-        return (
-            input_ids,
-            tensor(output["attention_mask"]),
-            tensor(output["token_type_ids"]),
-            pad_sequence(
-                [
-                    tensor([x["genre"] for _ in range(len(x["sentences"]))])
-                    for x in samples
-                ],
-                max_length=self.hparams.max_length,
-            ),
-            pad_sequence(
-                [tensor(x["labels"]) for x in samples],
-                max_length=self.hparams.max_length,
-            ),
+                    logging.debug(f"[#{i}] Truncating. Original:\n {sentences[i]}")
+                    labels[i] = labels[i][:s]
+        indices = tf.where(input_ids == self.sep_id)
+        updates = [item for sublist in labels for item in sublist]
+        labels_scattered = tf.tensor_scatter_nd_update(
+            tf.constant(-1.0, shape=tf.shape(input_ids)), indices, updates
         )
 
-    def get_dataloader(self, dataset_type, tokenizer, batch_size):
-        data = []
-        with gzip.open(cached_path(get_goodreads_map()[dataset_type])) as file:
-            for line in file:
-                review_json = json.loads(line)
-                genres = review_json["genres"]
-                sentences, labels = list(), list()
-                for label, sentence in review_json["review_sentences"]:
-                    labels.append(label)
-                    sentences.append(sentence)
+        return input_ids, labels_scattered
 
-                for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
-                    sentences,
-                    labels=labels,
-                    max_sentences=self.hparams.max_sent_per_example,
-                ):
-                    data.append(
-                        {
-                            "labels": labels_loop,
-                            "sentences": sentences_loop,
-                            "genre": encode_genre(genres),
-                        }
-                    )
-
-        dataset = ListDataset(data)
-        return DataLoader(
-            dataset,
-            num_workers=self.hparams.num_workers,
-            collate_fn=partial(self.prepare_sample, tokenizer),
-            batch_size=batch_size,
-            shuffle=True if dataset_type == "train" else False,
-            drop_last=True,
+    def write_dataset(self, dataset_type):
+        dataset = (
+            tf.data.TextLineDataset(
+                transformers.cached_path(DATA_SOURCES[dataset_type]),
+                compression_type="GZIP",
+            )
+            .map(
+                lambda x: tf.py_function(self.process, [x], [tf.int32, tf.float32]),
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
+            .interleave(
+                lambda x, y: tf.data.Dataset.from_tensor_slices((x, y)),
+                cycle_length=1,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
         )
 
-    @classmethod
-    def add_dataset_specific_args(cls, parent_parser):
-        parser = BaseDataset.add_dataset_specific_args(parent_parser)
-        parser.add_argument("--max_sent_per_example", type=int, default=5)
-        return parser
+        def serialize_example(input_ids, label):
+            def _bytes_feature(value):
+                return tf.train.Feature(
+                    bytes_list=tf.train.BytesList(value=[value.numpy()])
+                )
+
+            feature = {
+                "input_ids": _bytes_feature(tf.io.serialize_tensor(input_ids)),
+                "label": _bytes_feature(tf.io.serialize_tensor(label)),
+            }
+
+            example_proto = tf.train.Example(
+                features=tf.train.Features(feature=feature)
+            )
+            return example_proto.SerializeToString()
+
+        dataset = dataset.map(
+            lambda x, y: tf.py_function(serialize_example, [x, y], [tf.string])[0],
+            num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        )
+
+        file_path = f"./{self.get_file_name(dataset_type)}"
+        writer = tf.data.experimental.TFRecordWriter(file_path, compression_type="GZIP")
+        writer.write(dataset)
+
+    def get_dataset(self, dataset_type):
+        file_path = f"{BUCKET}/{self.get_file_name(dataset_type)}"
+        # self.write_dataset(dataset_type)
+        # file_path = f"./{self.get_file_name(dataset_type)}"
+
+        def read_tfrecord(serialized_example):
+            feature_description = {
+                "input_ids": tf.io.FixedLenFeature([], tf.string),
+                "label": tf.io.FixedLenFeature([], tf.string),
+            }
+
+            example = tf.io.parse_single_example(
+                serialized_example, feature_description
+            )
+            input_ids = tf.ensure_shape(
+                tf.io.parse_tensor(example["input_ids"], tf.int32), [self.max_length]
+            )
+            label = tf.ensure_shape(
+                tf.io.parse_tensor(example["label"], tf.float32), [self.max_length]
+            )
+
+            return {"input_ids": input_ids}, label
+
+        dataset = tf.data.TFRecordDataset(file_path, compression_type="GZIP").map(
+            read_tfrecord, num_parallel_calls=tf.data.experimental.AUTOTUNE
+        )
+
+        return dataset, LABELS_COUNTS
+
+
+class GoodreadsSscGenreAppendedDataset(GoodreadsSscDataset):
+    def __init__(self, hparams):
+        super().__init__(hparams)
+
+    def get_file_name(self, dataset_type):
+        return f"{GoodreadsSscGenreAppendedDataset.__name__}-{self.model_group}-{self.max_length}-{self.max_sentences}-{dataset_type}.tf.gz"
+
+    def process(self, line):
+        review_json = json.loads(line.numpy())
+        raw_sentences, raw_labels = list(), list()
+        for label, sentence in review_json["review_sentences"]:
+            raw_labels.append(float(label))
+            raw_sentences.append(sentence)
+
+        genres = review_json["genres"]
+        genres_encoded = encode_as_string(genres)
+
+        sentences, labels = list(), list()
+        for (sentences_loop, labels_loop) in enforce_max_sent_per_example(
+            raw_sentences, labels=raw_labels, max_sentences=self.max_sentences,
+        ):
+            sentences_sequence = f"[CLS]{'[SEP]'.join(sentences_loop)}[SEP]{genres_encoded}"  # omit final [SEP] on purpose
+            sentences.append(sentences_sequence)
+            labels.append(labels_loop)
+
+        def special_encode(texts, tokenizer, max_length=512):
+            input_ids = tokenizer.batch_encode_plus(
+                texts,
+                return_attention_masks=False,
+                return_token_type_ids=False,
+                pad_to_max_length=True,
+                max_length=max_length,
+                add_special_tokens=False,
+            )["input_ids"]
+
+            return np.array(input_ids)
+
+        input_ids = special_encode(sentences, self.tokenizer, self.max_length,)
+
+        if any([x[self.max_length - 1] != 0 for x in input_ids]):
+            input_ids = np.array(input_ids)
+            sentences_sums = np.sum(input_ids == self.sep_id, axis=1,)
+            labels_sums = [len(x) for x in labels]
+            for i in range(len(labels)):
+                s = sentences_sums[i]
+                l = labels_sums[i]
+                if s != l:
+                    logging.debug(f"[#{i}] Truncating. Original:\n {sentences[i]}")
+                    labels[i] = labels[i][:s]
+        indices = tf.where(input_ids == self.sep_id)
+        updates = [item for sublist in labels for item in sublist]
+        labels_scattered = tf.tensor_scatter_nd_update(
+            tf.constant(-1.0, shape=tf.shape(input_ids)), indices, updates
+        )
+
+        return input_ids, labels_scattered
