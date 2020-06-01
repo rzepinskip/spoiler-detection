@@ -102,7 +102,6 @@ class TvTropesBookSscDataset:
                 transformers.cached_path(DATA_SOURCES[dataset_type]),
                 compression_type="GZIP",
             )
-            .take(100)
             .map(
                 lambda x: tf.py_function(self.process, [x], [tf.int32, tf.float32]),
                 num_parallel_calls=tf.data.experimental.AUTOTUNE,
