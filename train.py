@@ -50,7 +50,7 @@ def get_callbacks(args):
     callbacks = list()
     if not args.dry_run:
         callbacks = []
-        save_dir = "./checkpoint.h5"
+        save_dir = "./checkpoint-{epoch:02d}.h5"
         if not args.offline:
             wandb.init(
                 project="spoiler_detection-keras", tags=[], config=args,
@@ -61,19 +61,14 @@ def get_callbacks(args):
                 LogLearningRate(),
             ]
             if args.upload_checkpoints:
-                save_dir = f"{wandb.run.dir}/checkpoint.h5"
+                save_dir = wandb.run.dir + "/checkpoint-{epoch:02d}.h5"
         callbacks += [
             tf.keras.callbacks.EarlyStopping(
                 monitor="val_loss", patience=2, restore_best_weights=False,
             )
         ]
         callbacks += [
-            tf.keras.callbacks.ModelCheckpoint(
-                save_dir,
-                monitor="val_loss",
-                save_best_only=True,
-                save_weights_only=True,
-            )
+            tf.keras.callbacks.ModelCheckpoint(save_dir, save_weights_only=True,)
         ]
     return callbacks
 
