@@ -7,6 +7,7 @@ import tensorflow as tf
 import transformers
 
 from ..feature_encoders import encode_as_distribution, encode_as_string
+from .utils import encode, enforce_max_sent_per_example, get_model_group
 
 DATA_SOURCES = {
     "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/goodreads_balanced-train.json.gz",
@@ -15,32 +16,6 @@ DATA_SOURCES = {
 }
 LABELS_COUNTS = {0: 2110317, 1: 455921}
 BUCKET = "gs://spoiler-detection/goodreads"
-
-
-def encode(texts, tokenizer, max_length=512):
-    input_ids = tokenizer.batch_encode_plus(
-        texts,
-        return_attention_masks=False,
-        return_token_type_ids=False,
-        pad_to_max_length=True,
-        max_length=max_length,
-    )["input_ids"]
-
-    return np.array(input_ids)
-
-
-def get_model_group(model_type):
-    if model_type.startswith("bert"):
-        name_split = model_type.split("-")
-        return f"{name_split[0]}_{name_split[2]}"
-
-    model_group = model_type.split("-")[0]
-
-    dash_sep = model_type.find("/")
-    if dash_sep:
-        model_group = model_group[dash_sep + 1 :]
-
-    return model_group
 
 
 class GoodreadsSingleDataset:
@@ -166,17 +141,6 @@ class GoodreadsSingleGenreAppendedDataset(GoodreadsSingleDataset):
 
         input_ids = encode(sentences, self.tokenizer, self.max_length,)
         return input_ids, [distribution_encoded_genres for _ in labels], labels
-
-
-def enforce_max_sent_per_example(sentences, labels, max_sentences=1):
-    assert len(sentences) == len(labels)
-
-    chunks = (
-        len(sentences) // max_sentences
-        if len(sentences) % max_sentences == 0
-        else len(sentences) // max_sentences + 1
-    )
-    return zip(np.array_split(sentences, chunks), np.array_split(labels, chunks))
 
 
 class GoodreadsSscDataset:

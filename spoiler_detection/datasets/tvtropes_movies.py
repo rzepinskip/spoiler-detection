@@ -4,23 +4,13 @@ import numpy as np
 import tensorflow as tf
 import transformers
 
+from .utils import encode, enforce_max_sent_per_example
+
 DATA_SOURCES = {
     "train": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-train.balanced.csv",
     "val": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-dev1.balanced.csv",
     "test": "https://spoiler-datasets.s3.eu-central-1.amazonaws.com/tvtropes_movie-test.balanced.csv",
 }
-
-
-def encode(texts, tokenizer, max_length=512):
-    input_ids = tokenizer.batch_encode_plus(
-        texts,
-        return_attention_masks=False,
-        return_token_type_ids=False,
-        pad_to_max_length=True,
-        max_length=max_length,
-    )["input_ids"]
-
-    return np.array(input_ids)
 
 
 class TvTropesMovieSingleDataset:

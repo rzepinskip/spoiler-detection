@@ -21,6 +21,7 @@ from spoiler_detection.datasets import (
     GoodreadsSscDataset,
     GoodreadsSscGenreAppendedDataset,
     TvTropesBookSingleDataset,
+    TvTropesBookSscDataset,
     TvTropesMovieSingleDataset,
 )
 from spoiler_detection.models import PooledModel, SequenceModel, SscModel
@@ -38,6 +39,7 @@ DATASETS = {
     "GoodreadsSscGenreAppendedDataset": GoodreadsSscGenreAppendedDataset,
     "TvTropesMovieSingleDataset": TvTropesMovieSingleDataset,
     "TvTropesBookSingleDataset": TvTropesBookSingleDataset,
+    "TvTropesBookSscDataset": TvTropesBookSscDataset,
 }
 
 
