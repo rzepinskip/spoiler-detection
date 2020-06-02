@@ -5,12 +5,13 @@ from spoiler_detection.datasets import (
     GoodreadsSingleDataset,
     GoodreadsSingleGenreAppendedDataset,
     GoodreadsSscDataset,
+    TvTropesBookSscDataset,
 )
 
-model_types = ["bert-base-cased", "bert-base-uncased", "albert-base-v2", "roberta-base"]
-dataset_classes = [GoodreadsSingleDataset]
+model_types = ["google/electra-base-discriminator"]
+dataset_classes = [TvTropesBookSscDataset]
 max_sentences_limits = [5]
-max_length_limits = [96]
+max_length_limits = [512]
 
 for model_type in model_types:
     for dataset_class in dataset_classes:
@@ -24,7 +25,7 @@ for model_type in model_types:
                 args = parser.parse_args([])
 
                 dataset = dataset_class(hparams=args)
-                dataset_types = ["train", "val"]
+                dataset_types = ["train", "val", "test"]
                 for dataset_type in dataset_types:
                     if not os.path.isfile(dataset.get_file_name(dataset_type)):
                         print(
