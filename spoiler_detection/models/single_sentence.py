@@ -3,10 +3,11 @@ import transformers
 
 
 def get_model(model_type):
-    if "electra" in model_type:
-        return transformers.TFElectraModel.from_pretrained(model_type)
+    model = transformers.TFElectraModel.from_pretrained(
+        model_type, output_attentions=True
+    )
 
-    return transformers.TFAutoModel.from_pretrained(model_type)
+    return model
 
 
 class SequenceModel(tf.keras.Model):
@@ -41,6 +42,14 @@ class SequenceModel(tf.keras.Model):
         x = self.dropout(x, training=kwargs.get("training", False))
         x = self.classifier(x)
         return x
+
+    def get_attention(self, inputs):
+        input_ids = inputs["input_ids"]
+        attention_mask = tf.where(
+            tf.equal(input_ids, 0), tf.zeros_like(input_ids), tf.ones_like(input_ids)
+        )
+        output = self.transformer([input_ids, attention_mask], training=False)
+        return output[-1]
 
 
 class PooledModel(tf.keras.Model):

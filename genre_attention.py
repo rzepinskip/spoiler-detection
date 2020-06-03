@@ -1,9 +1,12 @@
+import pickle
 import warnings
 from argparse import ArgumentParser
+from datetime import datetime
 
 import numpy as np
 import tensorflow as tf
 import transformers
+from tqdm import tqdm
 
 from spoiler_detection import WeightedBinaryCrossEntropy, create_optimizer
 from spoiler_detection.datasets import (
@@ -36,9 +39,13 @@ DATASETS = {
 
 parser = ArgumentParser(add_help=False)
 
-parser.add_argument("--checkpoint", type=str, default="TvTropesBookSingleDataset.h5")
+parser.add_argument(
+    "--checkpoint", type=str, default="GoodreadsSingleGenreAppendedDataset.h5"
+)
 parser.add_argument("--model_name", type=str, default="SequenceModel")
-parser.add_argument("--dataset_name", type=str, default="TvTropesBookSingleDataset")
+parser.add_argument(
+    "--dataset_name", type=str, default="GoodreadsSingleGenreAppendedDataset"
+)
 parser.add_argument("--seed", type=int, default=44)
 
 parser.add_argument(
@@ -46,7 +53,7 @@ parser.add_argument(
 )
 parser.add_argument("--learning_rate", default=2e-6, type=float)
 parser.add_argument("--dropout", default=0.1, type=float)
-parser.add_argument("--batch_size", default=32, type=int)
+parser.add_argument("--batch_size", default=64, type=int)
 parser.add_argument("--max_length", default=128, type=int)
 parser.add_argument("--use_genres", type=int, choices={0, 1}, default=0)
 args = parser.parse_args([])
@@ -57,7 +64,14 @@ np.random.seed(args.seed)
 warnings.simplefilter("ignore")
 
 dataset = DATASETS[args.dataset_name](hparams=args)
+train_dataset_raw, labels_count = dataset.get_dataset("train")
 
+train_dataset = (
+    train_dataset_raw.prefetch(tf.data.experimental.AUTOTUNE)
+    .shuffle(8096, seed=args.seed, reshuffle_each_iteration=True)
+    .batch(args.batch_size)
+    .prefetch(tf.data.experimental.AUTOTUNE)
+)
 strategy = tf.distribute.get_strategy()
 
 with strategy.scope():
@@ -83,17 +97,21 @@ def encode(texts, tokenizer, max_length=512):
     return {"input_ids": np.array(input_ids)}
 
 
-def get_proba(texts):
-    encoded = encode(texts, dataset.tokenizer, max_length=args.max_length)
-    res = model.predict(encoded)
-    probs = [[1 - x[0], x[0]] for x in res]
-    return probs
-
-
-get_proba(["Test string 1."])
+model.call(encode(["Test string 1."], tokenizer=dataset.tokenizer))
 
 model.load_weights(args.checkpoint, by_name=True)
+results = []
+batches = 1000
+for index, element in tqdm(train_dataset.take(batches).enumerate(), total=batches):
+    input_data, label = element
+    attn = model.get_attention(input_data)
+    cls_attn = tf.reduce_mean(attn[-1][:, 0, :], 1)
 
+    label = label.numpy()
+    tokens = input_data["input_ids"].numpy()
+    cls_attn = cls_attn.numpy()
+    for i in range(args.batch_size):
+        results += [(label[i], tokens[i], cls_attn[i])]
 
-res = get_proba(["Test string 1.", "Test string 2", "Test string 3"])
-res
+with open("attentions.pickle", "wb") as handle:
+    pickle.dump(results, handle)

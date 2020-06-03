@@ -83,17 +83,24 @@ def encode(texts, tokenizer, max_length=512):
     return {"input_ids": np.array(input_ids)}
 
 
-def get_proba(texts):
-    encoded = encode(texts, dataset.tokenizer, max_length=args.max_length)
-    res = model.predict(encoded)
-    probs = [[1 - x[0], x[0]] for x in res]
-    return probs
+# def get_proba(texts):
+#     encoded = encode(texts, dataset.tokenizer, max_length=args.max_length)
+#     res = model.predict(encoded)
+#     probs = [[1 - x[0], x[0]] for x in res]
+#     return probs
 
 
-get_proba(["Test string 1."])
+model.call(encode(["Test string 1."], tokenizer=dataset.tokenizer))
 
-model.load_weights(args.checkpoint, by_name=True)
+# model.load_weights(args.checkpoint, by_name=True)
 
-
-res = get_proba(["Test string 1.", "Test string 2", "Test string 3"])
-res
+token_input = encode(
+    [("Test string 2. ", " comedy, fantasy"), ("Test string 3. ", " science, fantasy")],
+    tokenizer=dataset.tokenizer,
+)
+token_input["input_ids"][0]
+attn = model.get_attention(token_input)
+cls_attn = tf.reduce_mean(
+    attn[-1][:, 0, :], 1
+)  # last layer (-1), all examples in batch (:), CLS token value factors (0), all factors (0)
+print()
