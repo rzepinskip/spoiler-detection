@@ -1,13 +1,14 @@
 import pickle
 
 import numpy as np
+from tqdm import tqdm
 
 with open("attentions.pickle", "rb") as handle:
     read_results = pickle.load(handle)
 
 
 attention_dist = []
-for label, tokens, attention in read_results:
+for label, tokens, attention in tqdm(read_results):
     sentence_end, tokens_end = np.where(tokens == 102)[0]
     attention[0] = 0  # CLS
     attention[sentence_end] = 0  # SEP 1
@@ -21,8 +22,22 @@ for label, tokens, attention in read_results:
         (label, sentence_attention, genre_attention, uniform_genre_attention)
     ]
 
-mean_genre_attention = np.mean([x for _, _, x, _ in attention_dist])
-mean_genre_attention
+mean_genre_attention = np.mean([x for label, _, x, _ in attention_dist])
+mean_uniform_genre_attention = np.mean([x for label, _, _, x in attention_dist])
+print(f"[All] Real {mean_genre_attention} vs uniform {mean_uniform_genre_attention}")
 
-mean_uniform_genre_attention = np.mean([x for _, _, _, x in attention_dist])
-mean_uniform_genre_attention
+mean_genre_attention = np.mean([x for label, _, x, _ in attention_dist if label == 0.0])
+mean_uniform_genre_attention = np.mean(
+    [x for label, _, _, x in attention_dist if label == 0.0]
+)
+print(
+    f"[Label 0] Real {mean_genre_attention} vs uniform {mean_uniform_genre_attention}"
+)
+
+mean_genre_attention = np.mean([x for label, _, x, _ in attention_dist if label == 1.0])
+mean_uniform_genre_attention = np.mean(
+    [x for label, _, _, x in attention_dist if label == 1.0]
+)
+print(
+    f"[Label 1] Real {mean_genre_attention} vs uniform {mean_uniform_genre_attention}"
+)
